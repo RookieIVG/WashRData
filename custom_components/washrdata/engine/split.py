@@ -50,7 +50,7 @@ def quiet_stretches(cycle: CycleRecord, config: DetectorConfig) -> list[tuple[fl
     return sorted((q for q in quiet if q[1] - q[0] >= MIN_QUIET_S), key=lambda q: q[0] - q[1])
 
 
-def _pauses(cycle: CycleRecord, config: DetectorConfig) -> list[float]:
+def pauses(cycle: CycleRecord, config: DetectorConfig) -> list[float]:
     runs = _activity(cycle, config)
     return [b - a for i, (a, b, active) in enumerate(runs) if not active and 0 < i < len(runs) - 1]
 
@@ -117,6 +117,6 @@ def split_cycle(cycle: CycleRecord, at_s: float, config: DetectorConfig) -> tupl
         **fresh,
     )
     for part in (first, second):
-        part.pauses = _pauses(part, config)
+        part.pauses = pauses(part, config)
         part.interrupted = part.duration() < config.min_cycle_s
     return first, second

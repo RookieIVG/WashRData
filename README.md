@@ -18,7 +18,8 @@ lernt aus den eigenen Zyklen, wie lange ein Programm ruhig sein kann, ohne ferti
 - Endverzögerung, die mitlernt: Einweichen und lange Pausen beenden den Zyklus nicht.
 - Ein zu früh beendeter Zyklus wird fortgesetzt statt geteilt, und der Fehler wird gelernt.
 - Zwei Läufe in einem (nächste Wäsche gleich hinterher)? In der App an der Pause teilen.
-- Knitterschutz beim Trockner als eigener Zustand, nicht als neuer Zyklus.
+- Knitterschutz beim Trockner als eigener Zustand, nicht als neuer Zyklus, auch wenn die Trommel
+  danach im 30-Sekunden-Takt weiterdreht: „fertig“ kommt, wenn das Trocknen fertig ist.
 - Programme lernen: Zyklen benennen, danach erkennt WashRData das Programm beim nächsten Lauf,
   zeigt Restzeit, Fortschritt und Ende-Uhrzeit und benennt sicher erkannte Läufe selbst.
 - Funktioniert mit Steckdosen, die nur Änderungen melden; übersteht Neustarts mitten im Programm.

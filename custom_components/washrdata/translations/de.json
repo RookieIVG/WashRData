@@ -181,7 +181,7 @@
         "at_progress": "Bei",
         "mean_error": "Ø Abweichung",
         "bias": "Tendenz",
-        "evaluation_help": "Falsch gezeigt: Läufe, die zwischendurch ein falsches Programm gezeigt hätten. Richtig ab: Median der Minute, ab der das richtige Programm erschien. Tendenz: + heißt, die Restzeit war zu lang, − zu kurz.",
+        "evaluation_help": "Falsch gezeigt: Läufe, die zwischendurch ein falsches Programm gezeigt hätten. Richtig ab: Median der Minute, ab der das richtige Programm erschien. Tendenz: + heißt, die Restzeit war zu lang, − zu kurz. Benennung falsch zählt auch erste Läufe eines Programms, die den Namen eines anderen bekämen.",
         "retro": "nachträglich",
         "replay": "Nachgespielt",
         "replay_shown": "richtiges Programm ab Minute {minute}",
@@ -191,7 +191,11 @@
         "split_help": "Zwei Läufe in einem? Teilen:",
         "split_at_pause": "bei {time} ({pause} min Pause)",
         "split_at": "bei {time} (angetippt)",
-        "split_confirm": "Diesen Lauf bei {time} in zwei Läufe teilen? Beide verlieren ihr Programm und können neu benannt werden."
+        "split_confirm": "Diesen Lauf bei {time} in zwei Läufe teilen? Beide verlieren ihr Programm und können neu benannt werden.",
+        "recommend_none": "Noch keine sichere Schwelle: Jede Schwelle, die richtige Läufe benennt, würde auch einen Lauf falsch benennen. Weiter von Hand benennen; mehr Läufe je Programm helfen.",
+        "evaluation_new": "{count} davon waren der erste Lauf ihres Programms; sie zeigen, ob ein neues Programm einen falschen Namen bekäme.",
+        "replay_new_as": "erster Lauf seines Programms, als {program} erkannt ({confidence})",
+        "replay_new_unknown": "erster Lauf seines Programms, richtig nicht erkannt"
       }
     }
   },

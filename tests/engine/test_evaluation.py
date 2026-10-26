@@ -2,11 +2,24 @@
 
 from __future__ import annotations
 
+import json
 import time
+from dataclasses import replace
+from pathlib import Path
 
 import pytest
 
-from engine.evaluation import THRESHOLDS, evaluate, fill_missing, select_references
+from engine import PRESETS, CycleRecord, DeviceType
+from engine.evaluation import (
+    THRESHOLDS,
+    CycleEvaluation,
+    _recommend,
+    _threshold_row,
+    evaluate,
+    fill_missing,
+    select_references,
+)
+from engine.split import quiet_stretches, split_cycle
 
 from .sim import MIN
 from .test_matching import COTTON, QUICK, trained
@@ -105,3 +118,45 @@ def test_price_change_during_a_cycle() -> None:
     bench.finish(rest)
     cycle = bench.tracker.last_cycle
     assert cycle.cost == pytest.approx(cost_before + (cycle.energy_wh - energy_before) / 1000 * 0.4, rel=0.02)
+
+
+def _real_washes() -> list:
+    """Two real washes (Pflegeleicht 30 and 60, split from one report) and a real Intensiv 60."""
+    fixtures = Path(__file__).parent.parent / "fixtures"
+    merged = CycleRecord.from_dict(json.loads((fixtures / "washer_two_washes.json").read_text())["cycle"])
+    config = PRESETS[DeviceType.WASHER]
+    gap = quiet_stretches(merged, config)[0]
+    p30, p60 = split_cycle(merged, (gap[0] + gap[1]) / 2, config)
+    p30.program, p60.program = "Pflegeleicht 30", "Pflegeleicht 60"
+    intensive = CycleRecord.from_dict(json.loads((fixtures / "washer_real_1.json").read_text())["cycle"])
+    intensive = replace(
+        intensive, start=-100_000.0, end=-100_000.0 + intensive.duration(), program="Intensiv 60"
+    )
+    return [intensive, p30, p60]
+
+
+def test_a_new_program_is_replayed_against_the_others() -> None:
+    """A first Pflegeleicht 60 looks like Pflegeleicht 30 but for longer heating:
+    recognition calls it Pflegeleicht 30 confidently enough to label it."""
+    cycles = _real_washes()
+    evaluation = evaluate(cycles, [c.program for c in cycles])
+    p60 = next(e for e in evaluation.cycles if e.program == "Pflegeleicht 60")
+    assert p60.new_program
+    assert p60.final == "Pflegeleicht 30"
+    assert p60.final_confidence >= 0.6
+    assert p60.first_shown(0.25) is None
+    row = next(r for r in evaluation.thresholds if r.threshold == 0.6)
+    assert row.auto_wrong >= 1
+    assert evaluation.new_program_cycles == 3
+    assert evaluation.note == "need_more"
+
+
+def test_no_recommendation_when_every_useful_threshold_also_mislabels() -> None:
+    bench = trained(COTTON, QUICK, runs=3)
+    evaluation = evaluate(bench.tracker.history, bench.tracker.programs)
+    assert evaluation.note is None
+    # The same runs plus a new program that recognition calls Pflegeleicht 30 at any confidence.
+    fake_new = CycleEvaluation("x", "New", 3600.0, [COTTON, QUICK], COTTON, 0.99, [])
+    evals = [*evaluation.cycles, fake_new]
+    rows = [_threshold_row(evals, t) for t in THRESHOLDS]
+    assert _recommend(rows, evals) == (None, None, "no_safe_threshold")

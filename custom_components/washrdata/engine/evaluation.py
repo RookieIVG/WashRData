@@ -64,6 +64,11 @@ class CycleEvaluation:
     final_confidence: float
     minutes: list[Minute]
 
+    @property
+    def new_program(self) -> bool:
+        """Its program had no other run: recognition can only get it wrong, or stay unsure."""
+        return self.program not in self.known_programs
+
     def first_shown(self, threshold: float) -> int | None:
         """First minute the right program was shown."""
         return next(
@@ -112,14 +117,26 @@ class Evaluation:
     remaining: list[RemainingRow] = field(default_factory=list)
     recommended_show: float | None = None
     recommended_auto: float | None = None
+    # Why there is no recommendation: "need_more" (too few runs of known
+    # programs) or "no_safe_threshold" (every threshold that labels a right run
+    # also labels a wrong one).
+    note: str | None = None
+
+    @property
+    def new_program_cycles(self) -> int:
+        return sum(e.new_program for e in self.cycles)
 
 
 def evaluate_cycle(cycle: CycleRecord, references: dict[str, list[CycleRecord]]) -> CycleEvaluation | None:
-    """Replay one finished cycle; None when its program has no usable reference."""
+    """Replay one finished cycle; None without any usable reference.
+
+    A cycle whose program has no other run is replayed too, as a new program:
+    the case where an automatic label would put a wrong name on it.
+    """
     if not cycle.program or cycle.end is None:
         return None
     matcher = ProgramMatcher(references)
-    if cycle.program not in matcher.programs:
+    if not matcher.programs:
         return None
     # An open copy, so the curve grows minute by minute as it did live.
     running = replace(cycle, end=None)
@@ -151,16 +168,17 @@ def evaluate_cycle(cycle: CycleRecord, references: dict[str, list[CycleRecord]])
 
 
 def _threshold_row(evals: list[CycleEvaluation], t: float) -> ThresholdRow:
-    first = [m for e in evals if (m := e.first_shown(t)) is not None]
-    auto = [(e.final == e.program, e.final_confidence >= t) for e in evals]
+    known = [e for e in evals if not e.new_program]
+    first = [m for e in known if (m := e.first_shown(t)) is not None]
+    sure = [e for e in evals if e.final_confidence >= t]
     return ThresholdRow(
         threshold=t,
         wrong_shown=sum(e.wrong_shown(t) for e in evals),
-        never_shown=len(evals) - len(first),
+        never_shown=len(known) - len(first),
         first_shown_min=median(first) if first else None,
-        auto_correct=sum(right and sure for right, sure in auto),
-        auto_wrong=sum(not right and sure for right, sure in auto),
-        auto_missed=sum(not sure for _, sure in auto),
+        auto_correct=sum(e.final == e.program for e in sure),
+        auto_wrong=sum(e.final != e.program for e in sure),
+        auto_missed=sum(e.final_confidence < t for e in known),
     )
 
 
@@ -174,18 +192,31 @@ def _remaining_row(evals: list[CycleEvaluation], progress: float) -> RemainingRo
     )
 
 
-def _recommend(rows: list[ThresholdRow], cycles: int) -> tuple[float | None, float | None]:
-    """Lowest thresholds that keep wrong displays rare and wrong automatic labels out."""
-    if cycles < MIN_CYCLES:
-        return None, None
-    show = next(
-        (r.threshold for r in rows if r.threshold >= MIN_SHOW and r.wrong_shown <= MAX_WRONG_SHOWN * cycles),
+def _recommend(
+    rows: list[ThresholdRow], evals: list[CycleEvaluation]
+) -> tuple[float | None, float | None, str | None]:
+    """Lowest thresholds that keep wrong displays rare and wrong automatic labels out.
+
+    The labelling threshold must also label at least one run right; one that
+    only avoids mistakes by labelling nothing is no recommendation.
+    """
+    if sum(not e.new_program for e in evals) < MIN_CYCLES:
+        return None, None, "need_more"
+    auto = next(
+        (r.threshold for r in rows if r.threshold >= MIN_AUTO and r.auto_wrong == 0 and r.auto_correct > 0),
         None,
     )
-    auto = next((r.threshold for r in rows if r.threshold >= MIN_AUTO and r.auto_wrong == 0), None)
-    if show is not None and auto is not None:
-        show = min(show, auto)
-    return show, auto
+    if auto is None:
+        return None, None, "no_safe_threshold"
+    show = next(
+        (
+            r.threshold
+            for r in rows
+            if r.threshold >= MIN_SHOW and r.wrong_shown <= MAX_WRONG_SHOWN * len(evals)
+        ),
+        auto,
+    )
+    return min(show, auto), auto, None
 
 
 def evaluate(cycles: list[CycleRecord], programs: list[str]) -> Evaluation:
@@ -196,13 +227,14 @@ def evaluate(cycles: list[CycleRecord], programs: list[str]) -> Evaluation:
         if (e := evaluate_cycle(c, select_references(cycles, programs, exclude=c.id))) is not None
     ]
     rows = [_threshold_row(evals, t) for t in THRESHOLDS]
-    show, auto = _recommend(rows, len(evals))
+    show, auto, note = _recommend(rows, evals)
     return Evaluation(
         cycles=evals,
         thresholds=rows,
         remaining=[_remaining_row(evals, p) for p in PROGRESS_POINTS],
         recommended_show=show,
         recommended_auto=auto,
+        note=note,
     )
 
 

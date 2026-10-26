@@ -37,6 +37,7 @@ def _cycle_evaluation(e: CycleEvaluation | None, show: float) -> dict[str, Any] 
     return {
         "final": e.final,
         "confidence": e.final_confidence,
+        "new_program": e.new_program,
         "first_shown_min": e.first_shown(show),
         "wrong_shown": e.wrong_shown(show),
         "remaining_error_s": {str(p): e.remaining_error(p) for p in (0.25, 0.5, 0.75)},
@@ -50,6 +51,8 @@ def _evaluation_json(evaluation: Evaluation | None) -> dict[str, Any] | None:
         "cycles": len(evaluation.cycles),
         "recommended_show": evaluation.recommended_show,
         "recommended_auto": evaluation.recommended_auto,
+        "note": evaluation.note,
+        "new_program_cycles": evaluation.new_program_cycles,
         "thresholds": [vars(r) for r in evaluation.thresholds],
         "remaining": [vars(r) for r in evaluation.remaining],
     }

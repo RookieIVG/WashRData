@@ -22,6 +22,14 @@ Der Projektverantwortliche hat ausdrücklich darum gebeten, daran erinnert zu we
   zum Release-Text.
 - Nach dem Push prüfen, ob CI und Release durchgelaufen sind.
 
+## Vorgemerkt
+
+- **C: Energie als zweites Merkmal der Erkennung** (siehe `docs/KONZEPT.md`, Offene Punkte). Der
+  Projektverantwortliche will daran erinnert werden, sobald er Diagnose-Dateien mit genug Läufen
+  schickt: Waschmaschine mit 2 bis 3 benannten Läufen je regelmäßig genutztem Programm (bisher, Stand
+  26.10.: 8 Läufe auf 5 Programme). Dann von sich aus darauf hinweisen und vorschlagen, C an diesen
+  Kurven umzusetzen.
+
 ## Projekt
 
 WashRData ist eine Home-Assistant-Custom-Integration. Sie erkennt anhand des Leistungssensors einer
@@ -44,6 +52,7 @@ custom_components/washrdata/
     tracker.py       Detector + Programme + Zyklus-Historie + Matcher eines Geräts
     evaluation.py    Leave-one-out-Auswertung: Schwellen, Restzeit-Genauigkeit, Empfehlung
     split.py         Gespeicherten Lauf teilen (zwei Wäschen in einem), Ruhephasen als Trennstellen
+    bursts.py        Knitterschutz-Drehungen am Zyklusende erkennen und abschneiden (Trockner)
   device.py          Adapter: Sensor-Events und Ticks -> Tracker, Events, Speicher
   services.py        Dienste (label_cycle, create/rename/delete_program)
   diagnostics.py     Diagnose-Download mit allen Kurven

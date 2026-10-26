@@ -19,12 +19,14 @@ import math
 from dataclasses import dataclass, field
 from typing import Any
 
+from .bursts import MIN_GAP_S, cut_turns
 from .learning import LearnedStats
 from .model import ACTIVE_STATES, CycleRecord, DetectorConfig, Event, EventKind, State
 
 # Anti-crease bursts are separated by short quiet spells; a burst is over
 # after this much quiet, so consecutive bursts are not merged into a run.
-BURST_GAP_S = 30.0
+# After the end, a drum turn ends once the drum stood still this long.
+BURST_GAP_S = MIN_GAP_S
 TRACE_MAX_POINTS = 5000
 TRACE_MAX_INTERVAL_S = 300.0
 
@@ -176,6 +178,8 @@ class CycleDetector:
         elif self.state == State.RUNNING:
             if not self._active:
                 self.state = State.PAUSED
+                if cfg.anti_crease:
+                    self._end_at_turns(ts, events)
         elif self.state == State.PAUSED:
             assert self.cycle is not None
             low_since = self._low_since if self._low_since is not None else ts
@@ -282,6 +286,18 @@ class CycleDetector:
         self._last_burst_ts = None
         self.state = State.RUNNING
         events.append(Event(kind, c.start, cycle))
+
+    def _end_at_turns(self, ts: float, events: list[Event]) -> None:
+        """A cycle that has gone over into anti-crease drum turns ended where they began."""
+        cycle = self.cycle
+        assert cycle is not None
+        if not cut_turns(cycle, self.config, ts - cycle.start):
+            return
+        assert cycle.end is not None
+        self._finish(cycle.end, events)
+        self.state = State.ANTI_CREASE
+        self._last_burst_ts = ts
+        events.append(Event(EventKind.ANTI_CREASE_STARTED, ts, cycle))
 
     def _finish(self, end: float, events: list[Event], interrupted: bool = False) -> None:
         cycle = self.cycle

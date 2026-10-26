@@ -118,6 +118,8 @@ class WashRDataDevice:
     async def async_start(self) -> None:
         if data := await self._store.async_load():
             self.tracker = Tracker.from_dict(self.config, data)
+            if self.tracker.trim_turns():
+                await self._store.async_save(self._data())
         self._unsubs = [
             async_track_state_change_event(self.hass, self.power_entity, self._on_state),
             async_track_state_report_event(self.hass, self.power_entity, self._on_state),

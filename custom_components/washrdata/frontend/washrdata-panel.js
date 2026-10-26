@@ -383,13 +383,14 @@ class WashRDataPanel extends HTMLElement {
             `<tr><td>${this._percent(r.progress)}</td><td>${r.cycles}</td><td>${r.mean_abs_error_s == null ? "–" : `${Math.round(r.mean_abs_error_s / 60)} min`}</td><td>${this._offset(r.bias_s)}</td></tr>`
         )
         .join("");
-      let advice = `<p class="muted">${esc(this.t("recommend_need", { count: 5 }))}</p>`;
+      let advice = `<p class="muted">${esc(this.t(ev.note === "no_safe_threshold" ? "recommend_none" : "recommend_need", { count: 5 }))}</p>`;
       if (ev.recommended_show != null && ev.recommended_auto != null) {
         const same = near(ev.recommended_show, th.show) && near(ev.recommended_auto, th.auto);
         advice = `<p>${esc(this.t("recommend", { show: this._percent(ev.recommended_show), auto: this._percent(ev.recommended_auto) }))}
           ${same ? `<span class="muted"> · ${esc(this.t("recommend_applied"))}</span>` : `<button class="text" data-thresholds="${ev.recommended_show},${ev.recommended_auto}">${esc(this.t("apply"))}</button>`}</p>`;
       }
-      body = `<p class="muted">${esc(this.t("evaluation_intro", { count: ev.cycles }))}</p>
+      const newer = ev.new_program_cycles ? ` ${this.t("evaluation_new", { count: ev.new_program_cycles })}` : "";
+      body = `<p class="muted">${esc(this.t("evaluation_intro", { count: ev.cycles }) + newer)}</p>
         ${advice}
         <h3>${esc(this.t("thresholds"))}</h3>
         <div class="scroll"><table><thead><tr><th>${esc(this.t("threshold"))}</th><th>${esc(this.t("wrong_shown"))}</th><th>${esc(this.t("never_shown"))}</th>
@@ -491,6 +492,10 @@ class WashRDataPanel extends HTMLElement {
   _replay(c) {
     const e = c.evaluation;
     if (!e) return "";
+    if (e.new_program) {
+      const said = e.final ? this.t("replay_new_as", { program: e.final, confidence: this._percent(e.confidence) }) : this.t("replay_new_unknown");
+      return `<div class="muted small">${esc(this.t("replay"))}: ${esc(said)}</div>`;
+    }
     const parts = [
       e.first_shown_min != null ? this.t("replay_shown", { minute: e.first_shown_min }) : this.t("replay_never"),
       e.wrong_shown ? this.t("replay_wrong") : "",

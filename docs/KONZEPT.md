@@ -1,6 +1,6 @@
 # WashRData: Konzept
 
-Stand: Version 0.2.7 (Programme und Erkennung), Oktober 2026.
+Stand: Version 0.2.8 (Programme und Erkennung), Oktober 2026.
 
 ## Ziel
 
@@ -112,6 +112,17 @@ Knitterschutz. Sie werden gezählt, sind aber kein neuer Zyklus. Nach 15 Minuten
 spätestens 2 Stunden nach dem Ende) ist der Knitterschutz vorbei. Erst eine längere Aktivität startet
 einen neuen Zyklus. Bei Waschmaschinen lässt sich das in den Optionen einschalten.
 
+Manche Trockner drehen die Trommel nach Trocknen und Kühlen etwa alle 30 Sekunden für 5 bis 10 Sekunden
+(an einem echten Wärmepumpentrockner gefunden, 0.2.8; `tests/fixtures/dryer_anti_crease.json`). Die
+Pausen dazwischen sind viel kürzer als jede Endverzögerung, also zählten die Drehungen zum Zyklus und
+„fertig“ kam 20 bis 30 Minuten zu spät. `engine/bursts.py` erkennt das am Ende jeder Aktivität (mit
+eingeschaltetem Knitterschutz): Folgen auf die letzte lange Aktivität mindestens 6 Drehungen von
+höchstens 60 s (Pausen unter 10 s überbrückt), endet der Zyklus dort, wo die Drehungen begannen. Die
+Drehungen werden Knitterschutz-Stöße, ihre Energie, Kosten und Pausen fallen aus dem Zyklus. Nach dem
+Ende zählt eine Drehung, sobald die Trommel 10 s steht (vorher 30 s), sodass ein Stoß-Takt von 30 s
+nicht als ein langer, neuer Zyklus durchgeht. Gespeicherte Zyklen, die noch Drehungen enthalten,
+werden beim Start einmalig gekürzt.
+
 **Messwerte, die ausbleiben.** Viele Steckdosen melden nur Änderungen. Damit Zeitgrenzen trotzdem
 greifen, bekommt die Engine alle 30 s einen Tick mit dem letzten Wert. Zusätzlich wertet der Adapter
 `state_reported` aus, also Meldungen mit gleichem Wert. Ein Messwert, der wegen eines dazwischen
@@ -201,6 +212,15 @@ welche Restzeit die Referenzen des wirklichen Programms ergeben. Daraus:
   15 %), bei der höchstens 10 % der Läufe zwischendurch falsch gezeigt hätten; Selbstbenennung ab der
   niedrigsten Schwelle (mindestens 40 %) ohne falsche Benennung; die Anzeigeschwelle nie über der
   für die Selbstbenennung.
+
+**Neue Programme.** Ein Lauf, dessen Programm sonst keinen Lauf hat, wird auch nachgespielt, gegen
+die übrigen Programme. Erkennt die Erkennung ihn sicher als ein anderes Programm, ist das eine falsche
+Selbstbenennung (an echten Kurven gefunden, 0.2.8: der erste Pflegeleicht 60 °C wäre mit 73 % als
+Pflegeleicht 30 °C benannt worden; die beiden unterscheiden sich nur in der Heizdauer). Diese Läufe
+zählen bei „falsch gezeigt“ und „Benennung falsch“ mit. Die Empfehlung für die Selbstbenennung muss
+ohne falsche Benennung auskommen und trotzdem mindestens einen Lauf richtig benennen. Gibt es keine
+solche Schwelle, empfiehlt die Auswertung nichts (`note: no_safe_threshold`); zu wenige Läufe
+bekannter Programme ergeben `need_more`.
 
 Läufe ohne festgehaltene Erkennung (vor 0.2.4) bekommen einmalig das nachgespielte Ergebnis. Die
 Auswertung läuft 30 s nach dem Start und nach jeder Änderung (beendeter Lauf, Benennung) in einem
@@ -302,6 +322,7 @@ und `remaining_min`.
 | **0.2.5** | Auswertung der gespeicherten Läufe (leave-one-out): Schwellen-Tabelle mit Empfehlung zum Übernehmen, Genauigkeit der Restzeit, ältere Läufe nachträglich bewertet; Schwellen für Anzeige und Selbstbenennung einstellbar; Kosten pro Lauf aus einer Strompreis-Entität; Statistik je Programm; Blueprints für „fertig“ und Vorwarnung; Panel lädt nur noch den laufenden Zyklus nach; Browser-Test des Panels in der CI |
 | **0.2.6** | Fehlerbehebung: Die App blieb seit 0.2.5 leer (Styles per top-level await geladen, das Element war beim Anlegen durch Home Assistant noch nicht definiert). Browser-Test lädt das Panel jetzt wie Home Assistant, auch mit früh angelegtem Element, in Chromium und WebKit (iPhone) |
 | **0.2.7** | Läufe teilen: In der App einen Lauf mit zwei Wäschen an der Pause dazwischen (oder an einer angetippten Stelle) in zwei Läufe teilen; Energie und Kosten werden aufgeteilt, die Lücke aus der gelernten Endverzögerung entfernt. Zeitfenster zum Fortsetzen und maximale Endverzögerung in den Erkennungseinstellungen. Getestet an einer echten Kurve mit zwei zusammengelegten Wäschen |
+| **0.2.8** | Trockner: Knitterschutz-Drehungen am Ende (alle ~30 s für wenige Sekunden) beenden den Zyklus dort, wo sie beginnen; „fertig“ kommt 20 bis 30 min früher, gespeicherte Läufe werden einmalig gekürzt. Auswertung: Der erste Lauf eines Programms wird mitgeprüft, damit keine Schwelle empfohlen wird, bei der ein neues Programm falsch benannt würde. Beides getestet an echten Kurven |
 | **0.2.x** | Kalibrierung der Schwellen an echten Kurven aus Diagnose-Dateien (Testkorpus, Leave-one-out-Messung); bei Bedarf Import alter Zyklen aus dem Recorder |
 | **0.3 Zusatzsensoren und Benachrichtigungen** | Türkontakt (Ende bestätigen, Erinnerung „Wäsche noch drin“), Vibrationssensor (Pause oder Ende unterscheiden, Leistung allein reicht dafür nicht immer), Wasserzähler; Blueprints für Benachrichtigungen, Vorwarnung vor dem Ende |
 | **0.4 Kosten und Tarife** | Kosten pro Zyklus mit fester oder dynamischer Preis-Entität (Tibber, Nordpool, EPEX); Empfehlung für die günstigste Startzeit: Programmprofil mal Preiskurve; Startzeit nach PV-Prognose (Forecast.Solar, Solcast) |
@@ -330,4 +351,11 @@ und `remaining_min`.
 - Lizenz des Projekts festlegen (z. B. MIT oder Apache-2.0).
 - Sammeln echter Leistungskurven der eigenen Geräte für den Testkorpus (per Diagnose-Download).
 - Die Schwellen der Erkennung (25 / 50 / 60 %, Distanz 0,8) sind an synthetischen Kurven gewählt
-  und müssen an echten Kurven geprüft werden.
+  und müssen an echten Kurven geprüft werden. Erster Befund an echten Waschmaschinen-Läufen (0.2.8):
+  Läufe desselben Programms liegen 0,11 bis 0,2 auseinander, „unbekannt“ tritt mit 0,25 an, deshalb
+  bleibt die Sicherheit richtiger Erkennungen bei 33 bis 56 %.
+- **Vorgemerkt (C): Energie als zweites Merkmal der Erkennung.** Programme, die sich nur in der
+  Heizdauer unterscheiden (Pflegeleicht 30 / 60 °C: 0,5–0,7 gegen 1,26 kWh), liegen in der Kurven-
+  Distanz eng beieinander. Ein Aufschlag `0,1 · |ln(E_Lauf / E_Referenz)|` senkte im Versuch den
+  falschen Treffer von 73 auf 22 %, kostete aber Intensiv 60 °C Sicherheit (33 → 22 %). Erst mit 2 bis 3
+  benannten Läufen je Programm einstellen und an echten Kurven testen.

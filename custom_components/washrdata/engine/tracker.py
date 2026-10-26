@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+from .bursts import cut_turns
 from .detector import CycleDetector
 from .evaluation import select_references
 from .matching import MatchResult, ProgramMatcher, _Snapshot
@@ -211,6 +212,20 @@ class Tracker:
         detector.cycle_count += 1
         self._invalidate()
         return first, second
+
+    def trim_turns(self) -> int:
+        """End stored cycles where trailing anti-crease drum turns began.
+
+        For cycles recorded before the detector recognised those turns; it
+        does nothing to a cycle that does not end in them, so it can run on
+        every start.
+        """
+        if not self.config.anti_crease:
+            return 0
+        trimmed = sum(cut_turns(c, self.config, c.duration()) for c in self.history)
+        if trimmed:
+            self._invalidate()
+        return trimmed
 
     def create_program(self, name: str) -> None:
         name = name.strip()

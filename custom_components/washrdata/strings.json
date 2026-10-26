@@ -181,7 +181,7 @@
         "at_progress": "At",
         "mean_error": "Ø deviation",
         "bias": "Tendency",
-        "evaluation_help": "Wrong shown: runs that showed a wrong program at some point. Right after: median minute the right program first appeared. Tendency: + means the remaining time was too long, − too short.",
+        "evaluation_help": "Wrong shown: runs that showed a wrong program at some point. Right after: median minute the right program first appeared. Tendency: + means the remaining time was too long, − too short. Label wrong also counts first runs of a program that would get the name of another one.",
         "retro": "evaluated later",
         "replay": "Replay",
         "replay_shown": "right program from minute {minute}",
@@ -191,7 +191,11 @@
         "split_help": "Two runs in one? Split:",
         "split_at_pause": "at {time} ({pause} min pause)",
         "split_at": "at {time} (tapped)",
-        "split_confirm": "Split this cycle at {time} into two runs? Both lose their program and can be labelled again."
+        "split_confirm": "Split this cycle at {time} into two runs? Both lose their program and can be labelled again.",
+        "recommend_none": "No safe threshold yet: every threshold that labels right runs would also label a run wrongly. Keep labelling by hand; more runs per program help.",
+        "evaluation_new": "{count} of them were the first run of their program; they show whether a new program would get a wrong name.",
+        "replay_new_as": "first run of its program, recognised as {program} ({confidence})",
+        "replay_new_unknown": "first run of its program, rightly not recognised"
       }
     }
   },
