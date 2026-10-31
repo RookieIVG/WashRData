@@ -1,6 +1,6 @@
 # WashRData: Konzept
 
-Stand: Version 0.2.8 (Programme und Erkennung), Oktober 2026.
+Stand: Version 0.2.9 (Programme und Erkennung), Oktober 2026.
 
 ## Ziel
 
@@ -193,7 +193,11 @@ bleibt beim späteren Umbenennen des Zyklus stehen. Dazu kommen die Programme, d
 Referenzen hatten (`known_programs`). Bewertet werden vollständige, benannte Läufe, deren Programm
 darunter war. Ein Treffer ist eine sichere Erkennung (≥ 60 %, die Schwelle der Selbstbenennung) genau
 dieses Programms. Jede Korrektur einer Selbstbenennung und jeder von Hand benannte Lauf, den die
-Erkennung verfehlt hat, ist ein Fehler. Läufe von vor 0.2.4 haben diese Angaben nicht und zählen
+Erkennung verfehlt hat, ist ein Fehler. Hat die Erkennung das richtige Programm genannt, aber unter
+dieser Schwelle, zählt der Lauf als „unsicher“ (`unsure`, im Panel ○ statt ✗); er bleibt ein Fehler
+der Selbstbenennung, wird aber getrennt ausgewiesen. Der erste Lauf eines Programms wird nicht
+bewertet, im Panel aber mit ✗ markiert, wenn die Erkennung ihn sicher einem anderen Programm
+zugeordnet hat. Läufe von vor 0.2.4 haben diese Angaben nicht und zählen
 nicht, bis die Auswertung sie nachträglich bewertet (`recognition_retro`, siehe unten). Live zeigt
 `sensor.<name>_recognition_confidence` die Sicherheit der Erkennung, auch während ein von Hand
 gewähltes Programm sie überstimmt.
@@ -323,6 +327,7 @@ und `remaining_min`.
 | **0.2.6** | Fehlerbehebung: Die App blieb seit 0.2.5 leer (Styles per top-level await geladen, das Element war beim Anlegen durch Home Assistant noch nicht definiert). Browser-Test lädt das Panel jetzt wie Home Assistant, auch mit früh angelegtem Element, in Chromium und WebKit (iPhone) |
 | **0.2.7** | Läufe teilen: In der App einen Lauf mit zwei Wäschen an der Pause dazwischen (oder an einer angetippten Stelle) in zwei Läufe teilen; Energie und Kosten werden aufgeteilt, die Lücke aus der gelernten Endverzögerung entfernt. Zeitfenster zum Fortsetzen und maximale Endverzögerung in den Erkennungseinstellungen. Getestet an einer echten Kurve mit zwei zusammengelegten Wäschen |
 | **0.2.8** | Trockner: Knitterschutz-Drehungen am Ende (alle ~30 s für wenige Sekunden) beenden den Zyklus dort, wo sie beginnen; „fertig“ kommt 20 bis 30 min früher, gespeicherte Läufe werden einmalig gekürzt. Auswertung: Der erste Lauf eines Programms wird mitgeprüft, damit keine Schwelle empfohlen wird, bei der ein neues Programm falsch benannt würde. Beides getestet an echten Kurven |
+| **0.2.9** | App: Erkennung je Lauf mit drei Zeichen: ✓ richtig und sicher genug zum Selbstbenennen, ○ richtig getippt, aber zu unsicher, ✗ falsch, auch beim ersten Lauf eines neuen Programms, der einen fremden Namen bekommen hätte. Trefferquote weist „richtig, aber unsicher“ getrennt aus (auch als Attribut `unsure`) |
 | **0.2.x** | Kalibrierung der Schwellen an echten Kurven aus Diagnose-Dateien (Testkorpus, Leave-one-out-Messung); bei Bedarf Import alter Zyklen aus dem Recorder |
 | **0.3 Zusatzsensoren und Benachrichtigungen** | Türkontakt (Ende bestätigen, Erinnerung „Wäsche noch drin“), Vibrationssensor (Pause oder Ende unterscheiden, Leistung allein reicht dafür nicht immer), Wasserzähler; Blueprints für Benachrichtigungen, Vorwarnung vor dem Ende |
 | **0.4 Kosten und Tarife** | Kosten pro Zyklus mit fester oder dynamischer Preis-Entität (Tibber, Nordpool, EPEX); Empfehlung für die günstigste Startzeit: Programmprofil mal Preiskurve; Startzeit nach PV-Prognose (Forecast.Solar, Solcast) |

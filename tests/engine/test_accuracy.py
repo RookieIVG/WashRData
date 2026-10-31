@@ -80,3 +80,15 @@ def test_rename_and_delete_keep_recognition_consistent() -> None:
 
     bench.tracker.delete_program("Kurz")
     assert cycle.recognised is None and "Kurz" not in cycle.known_programs
+
+
+def test_right_but_unsure_is_counted_apart() -> None:
+    bench = trained(COTTON, QUICK, runs=1)
+    bench.run(QUICK, seed=8)
+    cycle = bench.tracker.last_cycle
+    cycle.match_confidence = 0.3  # named right, below the labelling threshold
+    accuracy = bench.tracker.accuracy().programs[QUICK]
+    assert (accuracy.cycles, accuracy.hits, accuracy.unsure) == (1, 0, 1)
+    cycle.recognised = COTTON  # named wrong: neither hit nor unsure
+    accuracy = bench.tracker.accuracy().programs[QUICK]
+    assert (accuracy.hits, accuracy.unsure) == (0, 0)

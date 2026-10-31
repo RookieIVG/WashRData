@@ -58,7 +58,7 @@ custom_components/washrdata/
   diagnostics.py     Diagnose-Download mit allen Kurven
   websocket.py       WebSocket-Befehle des Panels (overview, live, subscribe, label, split_cycle, Programme, Schwellen)
   panel.py           Registriert das Panel in der Seitenleiste und liefert frontend/ aus
-  frontend/          washrdata-panel.js (+ -style.js): Web-Komponente ohne Build-Schritt, Texte aus selector.panel
+  frontend/          washrdata-panel.js (+ -chart.js, -style.js): Web-Komponente ohne Build-Schritt, Texte aus selector.panel
   cycle_view.py      Zyklus-Zeilen und Textkurve für den Optionen-Dialog „Zyklen bearbeiten“
   sensor.py, binary_sensor.py, select.py, text.py, entity.py, config_flow.py, const.py
   strings.json, translations/{en,de}.json

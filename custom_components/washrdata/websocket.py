@@ -143,7 +143,11 @@ def device_json(device: WashRDataDevice) -> dict[str, Any]:
         "accuracy": {
             "cycles": accuracy.total.cycles,
             "hits": accuracy.total.hits,
-            "programs": {p: {"cycles": a.cycles, "hits": a.hits} for p, a in accuracy.programs.items()},
+            "unsure": accuracy.total.unsure,
+            "programs": {
+                p: {"cycles": a.cycles, "hits": a.hits, "unsure": a.unsure}
+                for p, a in accuracy.programs.items()
+            },
         },
         "cycles": [
             cycle_json(c, refs, evaluation=_cycle_evaluation(evaluated.get(c.id), config.show_confidence))

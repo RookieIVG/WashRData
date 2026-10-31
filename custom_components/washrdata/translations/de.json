@@ -132,7 +132,7 @@
         "hits": "Treffer",
         "rate": "Quote",
         "references": "Referenzen",
-        "accuracy_help": "Bewertet werden vollständige, benannte Läufe, deren Programm schon Referenzen hatte. Ein Treffer ist eine sichere Erkennung (mindestens 60 %) genau dieses Programms; jede Korrektur zählt als Fehler.",
+        "accuracy_help": "Bewertet werden vollständige, benannte Läufe, deren Programm schon Referenzen hatte. ✓ Die Erkennung nannte das Programm sicher genug zum Selbstbenennen (Schwelle der Selbstbenennung), ○ sie nannte das richtige Programm, war aber zu unsicher, ✗ sie nannte ein anderes Programm. Nur ✓ zählt als Treffer.",
         "not_rated": "nicht bewertet",
         "none": "Kein Programm",
         "new_program": "Neues Programm …",
@@ -195,7 +195,14 @@
         "recommend_none": "Noch keine sichere Schwelle: Jede Schwelle, die richtige Läufe benennt, würde auch einen Lauf falsch benennen. Weiter von Hand benennen; mehr Läufe je Programm helfen.",
         "evaluation_new": "{count} davon waren der erste Lauf ihres Programms; sie zeigen, ob ein neues Programm einen falschen Namen bekäme.",
         "replay_new_as": "erster Lauf seines Programms, als {program} erkannt ({confidence})",
-        "replay_new_unknown": "erster Lauf seines Programms, richtig nicht erkannt"
+        "replay_new_unknown": "erster Lauf seines Programms, richtig nicht erkannt",
+        "hit_hint": "Richtig, und sicher genug zum Selbstbenennen",
+        "miss_hint": "Die Erkennung nannte ein anderes Programm",
+        "unsure_hint": "richtig, aber zu unsicher zum Benennen",
+        "unsure": "Unsicher",
+        "unsure_of": "{count} weitere richtig getippt, aber zu unsicher zum Benennen.",
+        "new_wrong_hint": "neues Programm, hätte diesen Namen bekommen",
+        "new_program_hint": "neues Programm"
       }
     }
   },

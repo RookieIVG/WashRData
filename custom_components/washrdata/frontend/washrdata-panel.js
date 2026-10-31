@@ -4,14 +4,12 @@
 
 // A static import: no top-level await, so the element is defined by the time
 // Home Assistant's script load event fires and it creates the panel.
+import { chart, esc, sparkline } from "./washrdata-panel-chart.js";
 import { STYLE } from "./washrdata-panel-style.js";
 
 const TEXT_PREFIX = "component.washrdata.selector.panel.options.";
 const REFRESH_MS = 5000;
 const NEW_PROGRAM = "__new__";
-
-const esc = (s) =>
-  String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 
 class WashRDataPanel extends HTMLElement {
   constructor() {
@@ -182,50 +180,11 @@ class WashRDataPanel extends HTMLElement {
   // -- charts -----------------------------------------------------------
 
   _sparkline(curve) {
-    if (!curve.length) return "";
-    const peak = Math.max(...curve, 1);
-    const w = 120;
-    const h = 28;
-    const step = w / Math.max(1, curve.length - 1);
-    const pts = curve.map((v, i) => `${(i * step).toFixed(1)},${(h - (Math.sqrt(v / peak) * (h - 2)) - 1).toFixed(1)}`);
-    return `<svg class="spark" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true">
-      <polyline points="${pts.join(" ")}" /></svg>`;
+    return sparkline(curve);
   }
 
-  // Curves in watts per minute. The first is drawn on top in the accent colour.
-  // Lines stretch with the card; labels are HTML so their size stays fixed.
-  // `marks` are vertical lines at minutes, `plot` makes the chart tappable for that cycle id.
-  _chart(series, { live = false, marks = [], plot = null } = {}) {
-    const all = series.flatMap((s) => s.curve);
-    if (!all.length) return `<div class="empty">${esc(this.t("no_curve"))}</div>`;
-    const peak = Math.max(...all, 10);
-    const minutes = Math.max(...series.map((s) => s.curve.length), 10);
-    const x = (i) => (i / minutes) * 1000;
-    const y = (v) => (1 - v / peak) * 1000;
-    const path = (curve) => curve.map((v, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join("");
-
-    let grid = "";
-    let labels = "";
-    for (const v of niceTicks(peak, 4)) {
-      grid += `<line class="grid" x1="0" x2="1000" y1="${y(v)}" y2="${y(v)}" />`;
-      const text = v >= 1000 ? `${this._num(v / 1000, 1)} kW` : `${v} W`;
-      labels += `<span class="ylabel" style="top:${y(v) / 10}%">${text}</span>`;
-    }
-    const xStep = minutes > 150 ? 60 : 30;
-    for (let m = 0; m <= minutes; m += xStep) {
-      labels += `<span class="xlabel" style="left:${x(m) / 10}%">${Math.floor(m / 60)}:${String(m % 60).padStart(2, "0")}</span>`;
-    }
-    const lines = [...series]
-      .reverse()
-      .map((s) => `<path class="${s.main ? "main" : "ref"}${live && s.main ? " live" : ""}" d="${path(s.curve)}" />`)
-      .join("");
-    for (const mark of marks) {
-      grid += `<line class="mark${mark.chosen ? " chosen" : ""}" x1="${x(mark.minute)}" x2="${x(mark.minute)}" y1="0" y2="1000" />`;
-    }
-    const tap = plot ? ` data-plot="${esc(plot)}" data-minutes="${minutes}"` : "";
-    return `<div class="chart"><div class="plot${plot ? " tappable" : ""}"${tap}>
-      <svg viewBox="0 0 1000 1000" preserveAspectRatio="none" role="img">${grid}${lines}</svg>${labels}
-    </div></div>`;
+  _chart(series, options = {}) {
+    return chart(series, options, { num: (v, d) => this._num(v, d), empty: this.t("no_curve") });
   }
 
   // -- rendering --------------------------------------------------------
@@ -313,15 +272,16 @@ class WashRDataPanel extends HTMLElement {
     const rate = acc.cycles ? acc.hits / acc.cycles : null;
     const rows = device.programs
       .map((p) => {
-        const a = acc.programs[p] || { cycles: 0, hits: 0 };
+        const a = acc.programs[p] || { cycles: 0, hits: 0, unsure: 0 };
         const refs = device.cycles.filter((c) => c.reference && c.program === p).length;
-        return `<tr><td>${esc(p)}</td><td>${a.cycles}</td><td>${a.hits}</td><td>${a.cycles ? this._percent(a.hits / a.cycles) : "–"}</td><td>${refs}</td></tr>`;
+        return `<tr><td>${esc(p)}</td><td>${a.cycles}</td><td>${a.hits}</td><td>${a.unsure}</td><td>${a.cycles ? this._percent(a.hits / a.cycles) : "–"}</td><td>${refs}</td></tr>`;
       })
       .join("");
     return `<section class="card"><h2>${esc(this.t("accuracy"))}</h2>
       <div class="big">${rate == null ? "–" : `${Math.round(rate * 100)} %`}</div>
       <div class="muted">${esc(acc.cycles ? this.t("hits_of", { hits: acc.hits, cycles: acc.cycles }) : this.t("no_rated"))}</div>
-      ${rows ? `<table><thead><tr><th>${esc(this.t("program"))}</th><th>${esc(this.t("rated"))}</th><th>${esc(this.t("hits"))}</th><th>${esc(this.t("rate"))}</th><th>${esc(this.t("references"))}</th></tr></thead><tbody>${rows}</tbody></table>` : ""}
+      ${acc.unsure ? `<div class="muted">${esc(this.t("unsure_of", { count: acc.unsure }))}</div>` : ""}
+      ${rows ? `<div class="scroll"><table><thead><tr><th>${esc(this.t("program"))}</th><th>${esc(this.t("rated"))}</th><th>${esc(this.t("hits"))}</th><th>${esc(this.t("unsure"))}</th><th>${esc(this.t("rate"))}</th><th>${esc(this.t("references"))}</th></tr></thead><tbody>${rows}</tbody></table></div>` : ""}
       <p class="muted small">${esc(this.t("accuracy_help"))}</p>
     </section>`;
   }
@@ -413,10 +373,23 @@ class WashRDataPanel extends HTMLElement {
     if (c.confidence == null) return `<span class="muted">${esc(this.t("not_rated"))}</span>`;
     const sure = c.recognised && c.confidence >= device.thresholds.auto;
     const said = c.recognised ? `${esc(c.recognised)} · ${this._percent(c.confidence)}` : esc(this.t("unknown"));
-    const rated = c.program && c.known_programs.includes(c.program) && !c.interrupted;
-    const mark = !rated ? "" : sure && c.recognised === c.program ? `<span class="hit">✓</span>` : `<span class="miss">✗</span>`;
+    const right = c.recognised === c.program;
+    const fresh = c.program && !c.known_programs.includes(c.program);
+    // ✓ would have been labelled right, ○ right but too unsure to label, ✗ wrong:
+    // also a first run of a program that would have got another program's name.
+    let mark = "";
+    let hint = "";
+    if (c.program && !c.interrupted && !fresh) {
+      if (right && sure) mark = `<span class="hit" title="${esc(this.t("hit_hint"))}">✓</span>`;
+      else if (right) [mark, hint] = [`<span class="unsure">○</span>`, this.t("unsure_hint")];
+      else mark = `<span class="miss" title="${esc(this.t("miss_hint"))}">✗</span>`;
+    } else if (fresh && !c.interrupted) {
+      if (sure) [mark, hint] = [`<span class="miss">✗</span>`, this.t("new_wrong_hint")];
+      else hint = this.t("new_program_hint");
+    }
     const retro = c.recognition_retro ? ` <span class="badge">${esc(this.t("retro"))}</span>` : "";
-    return `${mark}<span class="${sure ? "" : "muted"}">${said}</span>${retro}`;
+    const note = hint ? ` <span class="badge">${esc(hint)}</span>` : "";
+    return `${mark}<span class="${sure ? "" : "muted"}">${said}</span>${note}${retro}`;
   }
 
   _select(device, c) {
@@ -606,15 +579,5 @@ class WashRDataPanel extends HTMLElement {
     if (confirm(this.t("delete_confirm", { program }))) await this._call({ type: "washrdata/delete_program", program });
   }
 }
-
-function niceTicks(max, count) {
-  const raw = max / count;
-  const mag = 10 ** Math.floor(Math.log10(raw));
-  const step = [1, 2, 2.5, 5, 10].map((f) => f * mag).find((s) => s >= raw) || raw;
-  const ticks = [];
-  for (let v = 0; v <= max + 1e-9; v += step) ticks.push(Math.round(v));
-  return ticks;
-}
-
 
 customElements.define("washrdata-panel", WashRDataPanel);

@@ -27,6 +27,8 @@ LAST = "last"
 class ProgramAccuracy:
     cycles: int = 0
     hits: int = 0
+    # Misses where recognition named the right program, but not surely enough to label it.
+    unsure: int = 0
 
     @property
     def rate(self) -> float | None:
@@ -274,18 +276,20 @@ class Tracker:
         references count. A hit is a confident recognition (the threshold of
         the automatic label) of exactly that program, so every correction of
         an automatic label, and every manual label recognition missed, is a miss.
+        Misses that named the right program below that threshold are counted
+        as unsure as well.
         """
         total = ProgramAccuracy()
         per_program: dict[str, ProgramAccuracy] = {}
         for c in self.history:
             if c.interrupted or not c.program or c.program not in c.known_programs:
                 continue
-            hit = (
-                c.recognised == c.program and (c.match_confidence or 0.0) >= self.config.auto_label_confidence
-            )
+            right = c.recognised == c.program
+            sure = (c.match_confidence or 0.0) >= self.config.auto_label_confidence
             for stats in (total, per_program.setdefault(c.program, ProgramAccuracy())):
                 stats.cycles += 1
-                stats.hits += hit
+                stats.hits += right and sure
+                stats.unsure += right and not sure
         return Accuracy(total, per_program)
 
     def _all_cycles(self) -> list[CycleRecord]:

@@ -76,7 +76,11 @@ async def test_overview_shows_cycles_and_accuracy(
     assert device["accuracy"] == {
         "cycles": 2,
         "hits": 1,
-        "programs": {"Cotton 40": {"cycles": 1, "hits": 1}, "Quick": {"cycles": 1, "hits": 0}},
+        "unsure": 0,
+        "programs": {
+            "Cotton 40": {"cycles": 1, "hits": 1, "unsure": 0},
+            "Quick": {"cycles": 1, "hits": 0, "unsure": 0},
+        },
     }
     newest = device["cycles"][0]
     assert newest["id"] == miss.id
@@ -91,7 +95,7 @@ async def test_overview_shows_cycles_and_accuracy(
     await hass.async_block_till_done()
     state = hass.states.get("sensor.washer_recognition_accuracy")
     assert state.state == "50"
-    assert state.attributes["programs"]["Quick"] == {"cycles": 1, "hits": 0, "accuracy": 0}
+    assert state.attributes["programs"]["Quick"] == {"cycles": 1, "hits": 0, "unsure": 0, "accuracy": 0}
     assert hass.states.get("sensor.washer_recognition_confidence").state == "unknown"
 
 

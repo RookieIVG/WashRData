@@ -61,6 +61,15 @@ async def test_write_panel_data(hass: HomeAssistant, freezer: FrozenDateTimeFact
     async_fire_time_changed(hass)
     await hass.async_block_till_done()
 
+    # After the evaluation, so its recommendation stays: one run recognised right
+    # but too unsure (○), and a first run of a new program recognised as another (✗).
+    unsure = next(c for c in history if c.program == QUICK and not c.recognition_retro)
+    unsure.match_confidence = 0.3
+    fresh = replace(unsure, start=history[-1].start + 7200, end=history[-1].start + 7200 + unsure.duration())
+    fresh.program, fresh.match_confidence, fresh.recognition_retro = "Feinwäsche", 0.8, False
+    device.tracker.programs.append("Feinwäsche")
+    history.append(fresh)
+
     # A cycle running for 30 minutes.
     await _play(hass, freezer, [(300, 1.5), *vary(PROGRAMS[COTTON], 9)[:60]])
 

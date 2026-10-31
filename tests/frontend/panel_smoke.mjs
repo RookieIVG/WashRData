@@ -12,6 +12,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..")
 const files = {
   "/washrdata-panel.js": "custom_components/washrdata/frontend/washrdata-panel.js",
   "/washrdata-panel-style.js": "custom_components/washrdata/frontend/washrdata-panel-style.js",
+  "/washrdata-panel-chart.js": "custom_components/washrdata/frontend/washrdata-panel-chart.js",
   "/overview.json": "tests/frontend/overview.json",
   "/de.json": "custom_components/washrdata/translations/de.json",
 };
@@ -119,7 +120,12 @@ async function check(engine) {
     }
     assert.equal(await panel.locator(".cycle").count(), device.cycles.length);
     const text = await panel.locator(".content").innerText();
-    assert.match(text, /6 von 6 bewerteten Läufen richtig erkannt/);
+    assert.match(text, /5 von 6 bewerteten Läufen richtig erkannt/);
+    // ✓ sure and right, ○ right but too unsure, ✗ a new program that would get another name.
+    assert.match(text, /1 weitere richtig getippt, aber zu unsicher/);
+    assert.match(text, /○\s*Kurz 30 · 30 %\s*richtig, aber zu unsicher zum Benennen/);
+    assert.match(text, /✗\s*Kurz 30 · 80 %\s*neues Programm, hätte diesen Namen bekommen/);
+    assert.ok((await panel.locator(".verdict .hit").count()) >= 4);
     assert.match(text, /nachträglich/);
     assert.match(text, /Kosten bisher/);
     assert.match(text, /€/);

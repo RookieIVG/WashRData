@@ -70,10 +70,12 @@ def _accuracy_attrs(d: WashRDataDevice) -> dict[str, Any]:
     return {
         "cycles": accuracy.total.cycles,
         "hits": accuracy.total.hits,
+        "unsure": accuracy.total.unsure,
         "programs": {
             p: {
                 "cycles": a.cycles,
                 "hits": a.hits,
+                "unsure": a.unsure,
                 "accuracy": round(a.rate * 100) if a.rate is not None else None,
             }
             for p, a in accuracy.programs.items()

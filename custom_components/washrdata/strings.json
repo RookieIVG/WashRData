@@ -132,7 +132,7 @@
         "hits": "Hits",
         "rate": "Rate",
         "references": "References",
-        "accuracy_help": "Rated are complete, labelled cycles whose program already had references. A hit is a confident recognition (at least 60 %) of exactly that program; every correction counts as a miss.",
+        "accuracy_help": "Rated are complete, labelled runs whose program already had references. ✓ recognition named the program surely enough to label it (labelling threshold), ○ it named the right program but too unsure to label it, ✗ it named another program. Only ✓ counts as a hit.",
         "not_rated": "not rated",
         "none": "No program",
         "new_program": "New program…",
@@ -195,7 +195,14 @@
         "recommend_none": "No safe threshold yet: every threshold that labels right runs would also label a run wrongly. Keep labelling by hand; more runs per program help.",
         "evaluation_new": "{count} of them were the first run of their program; they show whether a new program would get a wrong name.",
         "replay_new_as": "first run of its program, recognised as {program} ({confidence})",
-        "replay_new_unknown": "first run of its program, rightly not recognised"
+        "replay_new_unknown": "first run of its program, rightly not recognised",
+        "hit_hint": "Right, and sure enough to label it automatically",
+        "miss_hint": "Recognition named another program",
+        "unsure_hint": "right, but too unsure to label",
+        "unsure": "Unsure",
+        "unsure_of": "{count} more recognised right, but too unsure to label them.",
+        "new_wrong_hint": "new program, would have got this name",
+        "new_program_hint": "new program"
       }
     }
   },

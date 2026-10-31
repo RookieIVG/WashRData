@@ -69,6 +69,7 @@ export const STYLE = `
   .verdict { display: flex; gap: 6px; align-items: center; }
   .badge { font-size: 11px; padding: 1px 6px; border-radius: 8px; background: var(--secondary-background-color, #eee); color: var(--secondary-text-color); }
   .hit { color: var(--success-color, #2e7d32); font-weight: 700; }
+  .unsure { color: var(--secondary-text-color); font-weight: 700; }
   .miss { color: var(--error-color, #c62828); font-weight: 700; }
   .detail { margin-top: 12px; }
   .compare { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
