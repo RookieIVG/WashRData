@@ -7,15 +7,30 @@
         "data": {
           "name": "Name",
           "device_type": "Device type",
-          "power_sensor": "Power sensor"
+          "power_sensor": "Power sensor",
+          "energy_sensor": "Energy meter"
         },
         "data_description": {
-          "power_sensor": "Power sensor of the smart plug (W or kW)."
+          "power_sensor": "Power sensor of the smart plug (W or kW).",
+          "energy_sensor": "Optional: the plug's energy meter (kWh). Energy and cost per run then come from it; detection keeps using the power."
+        }
+      },
+      "reconfigure": {
+        "title": "Change sensors",
+        "description": "Choose another power sensor or energy meter. Runs, programs and what WashRData learnt stay.",
+        "data": {
+          "power_sensor": "Power sensor",
+          "energy_sensor": "Energy meter"
+        },
+        "data_description": {
+          "power_sensor": "Power sensor of the smart plug (W or kW).",
+          "energy_sensor": "Optional: the plug's energy meter (kWh). Energy and cost per run then come from it; detection keeps using the power."
         }
       }
     },
     "abort": {
-      "already_configured": "This power sensor is already monitored."
+      "already_configured": "This power sensor is already monitored.",
+      "reconfigure_successful": "Sensors changed."
     }
   },
   "options": {

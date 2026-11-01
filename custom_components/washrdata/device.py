@@ -22,6 +22,7 @@ from homeassistant.util import dt as dt_util
 
 from .const import (
     CONF_DEVICE_TYPE,
+    CONF_ENERGY_SENSOR,
     CONF_POWER_SENSOR,
     DOMAIN,
     EVALUATION_DELAY_S,
@@ -34,6 +35,7 @@ from .const import (
 )
 from .engine import CycleDetector, CycleRecord, DeviceType, Event, EventKind, MatchResult, Tracker
 from .engine.evaluation import Evaluation, evaluate, fill_missing
+from .meter import EnergyMeter, apply_meter, parse_energy
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -98,6 +100,8 @@ class WashRDataDevice:
         self.config = build_config(self.device_type, dict(entry.options))
         self.tracker = Tracker(self.config)
         self.price_entity: str | None = entry.options.get(OPT_PRICE_ENTITY)
+        self.energy_entity: str | None = entry.data.get(CONF_ENERGY_SENSOR)
+        self.meter = EnergyMeter()
         self.evaluation: Evaluation | None = None
         self._evaluation_unsub: Any = None
         self._store: Store[dict[str, Any]] = Store(hass, STORAGE_VERSION, f"{DOMAIN}.{entry.entry_id}")
@@ -125,6 +129,13 @@ class WashRDataDevice:
             async_track_state_report_event(self.hass, self.power_entity, self._on_state),
             async_track_time_interval(self.hass, self._on_tick, TICK_INTERVAL),
         ]
+        if self.energy_entity:
+            self._unsubs.append(
+                async_track_state_change_event(self.hass, self.energy_entity, self._on_energy)
+            )
+            self.meter.add(
+                dt_util.utcnow().timestamp(), parse_energy(self.hass.states.get(self.energy_entity))
+            )
         if self.price_entity:
             self._unsubs.append(async_track_state_change_event(self.hass, self.price_entity, self._on_price))
             self.detector.price = parse_price(self.hass.states.get(self.price_entity))
@@ -152,6 +163,12 @@ class WashRDataDevice:
         self._handle(self.tracker.update(ts, parse_power(state)))
 
     @callback
+    def _on_energy(self, event: HassEvent[EventStateChangedData]) -> None:
+        state = event.data["new_state"]
+        if state is not None:
+            self.meter.add(state.last_updated_timestamp, parse_energy(state))
+
+    @callback
     def _on_price(self, event: HassEvent[EventStateChangedData]) -> None:
         # Energy up to now is charged at the old price before the new one applies.
         self._handle(self.tracker.tick(dt_util.utcnow().timestamp()))
@@ -174,6 +191,8 @@ class WashRDataDevice:
     @callback
     def _handle(self, events: list[Event]) -> None:
         for event in events:
+            if event.kind == EventKind.FINISHED and event.cycle is not None and self.energy_entity:
+                apply_meter(event.cycle, self.detector, self.meter, dt_util.utcnow().timestamp())
             self._fire(event)
         self.changed(save_now=any(e.kind == EventKind.FINISHED for e in events))
 

@@ -33,7 +33,10 @@ WashRData installieren, Home Assistant neu starten.
 **Manuell:** `custom_components/washrdata` nach `<config>/custom_components/` kopieren und neu starten.
 
 Danach **Einstellungen > Geräte & Dienste > Integration hinzufügen > WashRData**: Name, Gerätetyp und
-Leistungssensor wählen. Schwellen und Endverzögerung lassen sich unter **Konfigurieren >
+Leistungssensor wählen, optional den Energiezähler der Steckdose (kWh): Energie und Kosten pro Lauf
+kommen dann aus dem Zählerstand, die Erkennung nutzt weiter die Leistung. Beide Sensoren lassen sich
+später im Menü des Eintrags unter **Neu konfigurieren** ändern, Läufe und Programme bleiben dabei
+erhalten. Schwellen und Endverzögerung lassen sich unter **Konfigurieren >
 Erkennungseinstellungen** anpassen, die Standardwerte
 passen für die meisten Geräte.
 

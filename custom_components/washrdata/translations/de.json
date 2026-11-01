@@ -7,15 +7,30 @@
         "data": {
           "name": "Name",
           "device_type": "Gerätetyp",
-          "power_sensor": "Leistungssensor"
+          "power_sensor": "Leistungssensor",
+          "energy_sensor": "Energiezähler"
         },
         "data_description": {
-          "power_sensor": "Leistungssensor der smarten Steckdose (W oder kW)."
+          "power_sensor": "Leistungssensor der smarten Steckdose (W oder kW).",
+          "energy_sensor": "Optional: der Energiezähler der Steckdose (kWh). Energie und Kosten pro Lauf kommen dann aus ihm; die Erkennung nutzt weiter die Leistung."
+        }
+      },
+      "reconfigure": {
+        "title": "Sensoren ändern",
+        "description": "Anderen Leistungssensor oder Energiezähler wählen. Läufe, Programme und das Gelernte bleiben erhalten.",
+        "data": {
+          "power_sensor": "Leistungssensor",
+          "energy_sensor": "Energiezähler"
+        },
+        "data_description": {
+          "power_sensor": "Leistungssensor der smarten Steckdose (W oder kW).",
+          "energy_sensor": "Optional: der Energiezähler der Steckdose (kWh). Energie und Kosten pro Lauf kommen dann aus ihm; die Erkennung nutzt weiter die Leistung."
         }
       }
     },
     "abort": {
-      "already_configured": "Dieser Leistungssensor wird bereits überwacht."
+      "already_configured": "Dieser Leistungssensor wird bereits überwacht.",
+      "reconfigure_successful": "Sensoren geändert."
     }
   },
   "options": {

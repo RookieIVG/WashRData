@@ -1,6 +1,6 @@
 # WashRData: Konzept
 
-Stand: Version 0.2.10 (Programme und Erkennung), Oktober 2026.
+Stand: Version 0.2.11 (Programme und Erkennung), Oktober 2026.
 
 ## Ziel
 
@@ -325,6 +325,16 @@ Event enthält `entry_id`, `name`, `device_type` und eine Zusammenfassung des Zy
 Dauer, Energie, Spitzenleistung, `interrupted`, `resumed`, `anti_crease_bursts`, `program`,
 `program_source`, `match_confidence`, `recognised`, `cost`).
 
+**Energiezähler.** Optional gehört zum Gerät der Energiezähler der Steckdose (`energy_sensor`, kWh, Wh
+oder MWh). Die Erkennung rechnet weiter mit der integrierten Leistung, denn ein Zähler, der in
+10-Wh-Schritten meldet, würde jeden Start verzögern. Ist ein Zyklus beendet, ersetzt `meter.py` seine
+Energie durch die Zählerdifferenz von seinem Start bis zum Ende-Zeitpunkt (die letzten Stände sind bis
+dahin da, denn das Ende wird erst nach der Endverzögerung gemeldet); Kosten werden im selben
+Verhältnis angepasst, die Gesamtenergie um die Differenz. Ein Zählerrücksprung (Neustart der
+Steckdose) zählt weiter. Ohne Zählerstände vor dem Start oder bei mehr als dem Dreifachen Abweichung
+bleibt die integrierte Energie. Leistungssensor und Zähler lassen sich über „Neu konfigurieren“ ändern;
+der Eintrag behält Speicher, Läufe und Gelerntes, die eindeutige ID folgt dem Leistungssensor.
+
 **Kosten.** Mit einer Strompreis-Entität in den Optionen (`input_number`, `number` oder `sensor`, Preis
 pro kWh, ct/kWh wird umgerechnet) rechnet der Detector jedes Energie-Stück mit dem gerade gültigen
 Preis ab (`CycleRecord.cost`). Ein Preiswechsel während des Laufs gilt ab dann; solange der Preis
@@ -352,6 +362,7 @@ und `remaining_min`.
 | **0.2.8** | Trockner: Knitterschutz-Drehungen am Ende (alle ~30 s für wenige Sekunden) beenden den Zyklus dort, wo sie beginnen; „fertig“ kommt 20 bis 30 min früher, gespeicherte Läufe werden einmalig gekürzt. Auswertung: Der erste Lauf eines Programms wird mitgeprüft, damit keine Schwelle empfohlen wird, bei der ein neues Programm falsch benannt würde. Beides getestet an echten Kurven |
 | **0.2.9** | App: Erkennung je Lauf mit drei Zeichen: ✓ richtig und sicher genug zum Selbstbenennen, ○ richtig getippt, aber zu unsicher, ✗ falsch, auch beim ersten Lauf eines neuen Programms, der einen fremden Namen bekommen hätte. Trefferquote weist „richtig, aber unsicher“ getrennt aus (auch als Attribut `unsure`) |
 | **0.2.10** | Energie als zweites Merkmal der Erkennung: Programme, die sich nur in der Heizdauer unterscheiden, werden sicherer erkannt (an echten Läufen: 5 statt 1 sicher richtig benannt). Trockner: Restzeit erst ab der Kühlphase, vorher „trocknet“; ab Kühlphase im Schnitt ~6 statt 26 Minuten daneben. Programme zusammenführen: Umbenennen auf einen vorhandenen Namen |
+| **0.2.11** | Sensoren nachträglich ändern: „Neu konfigurieren“ wählt Leistungssensor und optional den Energiezähler der Steckdose, Läufe und Programme bleiben. Mit Energiezähler kommen Energie und Kosten pro Lauf aus dem Zählerstand |
 | **0.2.x** | Kalibrierung der Schwellen an echten Kurven aus Diagnose-Dateien (Testkorpus, Leave-one-out-Messung); bei Bedarf Import alter Zyklen aus dem Recorder |
 | **0.3 Zusatzsensoren und Benachrichtigungen** | Türkontakt (Ende bestätigen, Erinnerung „Wäsche noch drin“), Vibrationssensor (Pause oder Ende unterscheiden, Leistung allein reicht dafür nicht immer), Wasserzähler; Blueprints für Benachrichtigungen, Vorwarnung vor dem Ende |
 | **0.4 Kosten und Tarife** | Kosten pro Zyklus mit fester oder dynamischer Preis-Entität (Tibber, Nordpool, EPEX); Empfehlung für die günstigste Startzeit: Programmprofil mal Preiskurve; Startzeit nach PV-Prognose (Forecast.Solar, Solcast) |

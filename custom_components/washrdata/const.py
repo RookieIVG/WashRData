@@ -14,6 +14,8 @@ PLATFORMS = [Platform.BINARY_SENSOR, Platform.SELECT, Platform.SENSOR, Platform.
 
 CONF_DEVICE_TYPE = "device_type"
 CONF_POWER_SENSOR = "power_sensor"
+# Optional energy meter of the plug (kWh); energy then comes from it.
+CONF_ENERGY_SENSOR = "energy_sensor"
 
 # Option of the program select that means "no program".
 NO_PROGRAM = "none"

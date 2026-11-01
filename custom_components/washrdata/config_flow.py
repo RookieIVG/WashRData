@@ -19,6 +19,7 @@ from homeassistant.helpers import selector
 
 from .const import (
     CONF_DEVICE_TYPE,
+    CONF_ENERGY_SENSOR,
     CONF_POWER_SENSOR,
     DOMAIN,
     NO_PROGRAM,
@@ -64,6 +65,17 @@ def _percent() -> selector.NumberSelector:
     )
 
 
+def _sensor_fields() -> dict[Any, Any]:
+    return {
+        vol.Required(CONF_POWER_SENSOR): selector.EntitySelector(
+            selector.EntitySelectorConfig(domain="sensor", device_class=SensorDeviceClass.POWER)
+        ),
+        vol.Optional(CONF_ENERGY_SENSOR): selector.EntitySelector(
+            selector.EntitySelectorConfig(domain="sensor", device_class=SensorDeviceClass.ENERGY)
+        ),
+    }
+
+
 class WashRDataConfigFlow(ConfigFlow, domain=DOMAIN):
     VERSION = 1
 
@@ -83,12 +95,27 @@ class WashRDataConfigFlow(ConfigFlow, domain=DOMAIN):
                         mode=selector.SelectSelectorMode.LIST,
                     )
                 ),
-                vol.Required(CONF_POWER_SENSOR): selector.EntitySelector(
-                    selector.EntitySelectorConfig(domain="sensor", device_class=SensorDeviceClass.POWER)
-                ),
+                **_sensor_fields(),
             }
         )
         return self.async_show_form(step_id="user", data_schema=schema)
+
+    async def async_step_reconfigure(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        """Other power sensor or energy meter; cycles, programs and learning stay."""
+        entry = self._get_reconfigure_entry()
+        if user_input is not None:
+            power = user_input[CONF_POWER_SENSOR]
+            if power != entry.unique_id:
+                await self.async_set_unique_id(power)
+                self._abort_if_unique_id_configured()
+            data = {**entry.data, CONF_POWER_SENSOR: power}
+            data.pop(CONF_ENERGY_SENSOR, None)
+            if energy := user_input.get(CONF_ENERGY_SENSOR):
+                data[CONF_ENERGY_SENSOR] = energy
+            return self.async_update_reload_and_abort(entry, unique_id=power, data=data)
+
+        schema = self.add_suggested_values_to_schema(vol.Schema(_sensor_fields()), dict(entry.data))
+        return self.async_show_form(step_id="reconfigure", data_schema=schema)
 
     @staticmethod
     @callback
