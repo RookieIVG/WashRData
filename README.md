@@ -77,7 +77,7 @@ Lauf bearbeiten oder fertig.
 | `sensor.<name>_recognition_confidence` | Sicherheit der Erkennung im laufenden Zyklus (%) |
 | `sensor.<name>_recognition_accuracy` | Trefferquote der Erkennung (%), je Programm als Attribut |
 | `sensor.<name>_cycle_cost` / `_last_cycle_cost` | Kosten des laufenden bzw. letzten Zyklus (nur mit Strompreis) |
-| `sensor.<name>_time_remaining` | Restzeit (min) |
+| `sensor.<name>_time_remaining` | Restzeit (min); beim Trockner erst ab der Kühlphase, weil die Trockendauer von der Feuchte abhängt |
 | `sensor.<name>_expected_end` | Voraussichtliches Ende (Uhrzeit) |
 | `sensor.<name>_progress` | Fortschritt (%) |
 | `sensor.<name>_cycle_duration` / `_cycle_energy` | Aktueller Zyklus |
@@ -164,7 +164,8 @@ In der Seitenleiste steht der Menüpunkt **WashRData**, für alle Benutzer. Er z
   ausgegangen wäre. Dazu kommt die Genauigkeit der Restzeit bei 25, 50 und 75 % des Laufs (Ø
   Abweichung und Tendenz). Ab fünf ausgewerteten Läufen schlägt die App Schwellen vor, ein Klick auf
   **Übernehmen** stellt sie ein. Von Hand geht das unter **Konfigurieren > Erkennungseinstellungen**.
-- **Programme:** umbenennen und löschen.
+- **Programme:** umbenennen und löschen. Umbenennen auf einen vorhandenen Namen führt beide Programme
+  zusammen, nach Rückfrage; sinnvoll für Programme, die die Erkennung nicht unterscheiden kann.
 
 **Zwei Wäschen in einem Lauf:** Startet die nächste Wäsche kurz nach dem Ende der vorigen, innerhalb
 des Zeitfensters zum Fortsetzen (Waschmaschine 15 min, Trockner 10 min), legt WashRData beide zu einem

@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+import pytest
 from homeassistant.components.frontend import DATA_PANELS
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ServiceValidationError
+from homeassistant.helpers import device_registry as dr
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 from pytest_homeassistant_custom_component.typing import ClientSessionGenerator, WebSocketGenerator
 
+from custom_components.washrdata.const import DOMAIN
 from custom_components.washrdata.engine import CycleRecord, LabelSource
 
 from .conftest import POWER
@@ -155,3 +159,37 @@ async def test_label_rename_delete_from_panel(
     )
     response = await ws.receive_json()
     assert response["error"]["code"] == "not_found"
+
+
+async def test_rename_onto_existing_program_merges(
+    hass: HomeAssistant, hass_ws_client: WebSocketGenerator, washer_entry: MockConfigEntry
+) -> None:
+    hit, miss = await _setup(hass, washer_entry)
+    tracker = washer_entry.runtime_data.tracker
+    ws = await hass_ws_client(hass)
+    entry_id = washer_entry.entry_id
+    rename = {
+        "type": "washrdata/rename_program",
+        "entry_id": entry_id,
+        "program": "Quick",
+        "new_name": "Cotton 40",
+    }
+
+    await ws.send_json_auto_id(rename)
+    assert (await ws.receive_json())["error"]["code"] == "invalid_format"
+
+    await ws.send_json_auto_id({**rename, "merge": True})
+    assert (await ws.receive_json())["success"]
+    assert tracker.programs == ["Cotton 40"]
+    assert miss.program == "Cotton 40" and hit.program == "Cotton 40"
+
+
+async def test_rename_service_merges(hass: HomeAssistant, washer_entry: MockConfigEntry) -> None:
+    _hit, miss = await _setup(hass, washer_entry)
+    device = dr.async_get(hass).async_get_device(identifiers={(DOMAIN, washer_entry.entry_id)})
+    data = {"device_id": device.id, "program": "Quick", "new_name": "Cotton 40"}
+    with pytest.raises(ServiceValidationError):
+        await hass.services.async_call(DOMAIN, "rename_program", data, blocking=True)
+    await hass.services.async_call(DOMAIN, "rename_program", {**data, "merge": True}, blocking=True)
+    assert washer_entry.runtime_data.tracker.programs == ["Cotton 40"]
+    assert miss.program == "Cotton 40"

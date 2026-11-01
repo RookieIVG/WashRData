@@ -82,6 +82,9 @@ class DetectorConfig:
     # Program recognition thresholds, adjustable per appliance.
     show_confidence: float = SHOW_CONFIDENCE
     auto_label_confidence: float = AUTO_LABEL_CONFIDENCE
+    # Sensor drying: the run time depends on the load, so the remaining time
+    # is only given in the cooling phase at the end (engine/drying.py).
+    sensor_drying: bool = False
 
     def with_overrides(self, overrides: dict[str, Any]) -> DetectorConfig:
         known = {f.name for f in fields(self)}
@@ -118,6 +121,7 @@ PRESETS: dict[DeviceType, DetectorConfig] = {
         resume_window_s=600.0,
         finished_timeout_s=1800.0,
         anti_crease=True,
+        sensor_drying=True,
         burst_max_s=240.0,
         anti_crease_idle_s=900.0,
         anti_crease_max_s=7200.0,

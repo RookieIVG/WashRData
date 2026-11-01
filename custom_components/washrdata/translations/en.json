@@ -148,7 +148,7 @@
         "cycle_count": "{count} cycles",
         "rename": "Rename",
         "delete": "Delete",
-        "rename_prompt": "New name for {program}",
+        "rename_prompt": "New name for {program} (an existing name merges both)",
         "delete_confirm": "Delete {program}? Its cycles are kept, without a program.",
         "cost_so_far": "Cost so far",
         "statistics": "Statistics per program",
@@ -202,7 +202,10 @@
         "unsure": "Unsure",
         "unsure_of": "{count} more recognised right, but too unsure to label them.",
         "new_wrong_hint": "new program, would have got this name",
-        "new_program_hint": "new program"
+        "new_program_hint": "new program",
+        "from_cooling": "Cooling starts",
+        "drying_phase": "drying, the end depends on how damp the laundry is; remaining time once it cools",
+        "merge_confirm": "{into} already exists. Merge {program} into {into}? All runs of {program} become {into}."
       }
     }
   },
@@ -319,7 +322,7 @@
     },
     "rename_program": {
       "name": "Rename program",
-      "description": "Renames a program, including its labelled cycles.",
+      "description": "Renames a program, including its labelled cycles. With merge, an existing name merges both programs.",
       "fields": {
         "device_id": {
           "name": "Device",
@@ -332,6 +335,10 @@
         "new_name": {
           "name": "New name",
           "description": "New name."
+        },
+        "merge": {
+          "name": "Merge",
+          "description": "Rename onto an existing program merges both: its runs move to that program."
         }
       }
     },

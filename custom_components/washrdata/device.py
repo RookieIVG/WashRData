@@ -205,7 +205,9 @@ class WashRDataDevice:
         tracker = self.tracker
         # The replay takes seconds: run it in a thread, on a copy.
         cycles = [CycleRecord.from_dict(c.to_dict()) for c in tracker.history]
-        self.evaluation = await self.hass.async_add_executor_job(evaluate, cycles, list(tracker.programs))
+        self.evaluation = await self.hass.async_add_executor_job(
+            evaluate, cycles, list(tracker.programs), self.config.sensor_drying
+        )
         if fill_missing(tracker.history, self.evaluation):
             self._store.async_delay_save(self._data, SAVE_DELAY_S)
         async_dispatcher_send(self.hass, signal_update(self.entry.entry_id))

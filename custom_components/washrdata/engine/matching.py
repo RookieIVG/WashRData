@@ -38,6 +38,14 @@ MAX_SCORE = 0.8
 UNKNOWN_SCORE = 0.25
 # Closed-end matches must also have a plausible length.
 MAX_LENGTH_RATIO = 1.4
+# Energy as a second feature: programs that differ only in heating time
+# (30 / 60 degrees) look alike minute by minute but not in energy. Up to
+# ENERGY_TOLERANCE (as |ln ratio|, about 22 %) a difference is run-to-run
+# variation and costs nothing; beyond it each unit adds ENERGY_WEIGHT to the
+# score. Chosen on real washing machine and dryer runs (0.2.10).
+ENERGY_WEIGHT = 0.15
+ENERGY_TOLERANCE = 0.2
+ENERGY_FLOOR_WH = 1.0
 POWER_SCALE_W = 20.0
 
 
@@ -79,6 +87,22 @@ def curve(cycle: CycleRecord, now: float | None = None) -> list[float]:
     return [level(w) for w in resample(cycle.trace, cycle.duration(now))]
 
 
+def cumulative_wh(watts: Sequence[float], step: float = STEP_S) -> list[float]:
+    """Energy up to the end of each window."""
+    out: list[float] = []
+    total = 0.0
+    for w in watts:
+        total += w * step / 3600
+        out.append(total)
+    return out
+
+
+def energy_penalty(query_wh: float, reference_wh: float) -> float:
+    """Score added for an energy difference beyond run-to-run variation."""
+    ratio = abs(math.log((query_wh + ENERGY_FLOOR_WH) / (reference_wh + ENERGY_FLOOR_WH)))
+    return ENERGY_WEIGHT * max(0.0, ratio - ENERGY_TOLERANCE)
+
+
 def _next_row(prev: list[float] | None, ref: list[float], q: float) -> list[float]:
     row = [0.0] * len(ref)
     for j, r in enumerate(ref):
@@ -99,6 +123,7 @@ class _Reference:
     program: str
     cycle_id: str
     curve: list[float]
+    energy: list[float]
     row: list[float] | None = None
 
 
@@ -114,6 +139,8 @@ class MatchResult:
     # What recognition alone says, also while a manual label overrides it.
     recognised: str | None = None
     recognition_confidence: float = 0.0
+    # Dryers: "drying" (no remaining time yet) or "cooling".
+    phase: str | None = None
 
     @property
     def progress(self) -> float | None:
@@ -147,6 +174,7 @@ def _band(n: int, m: int) -> range:
 @dataclass
 class _Snapshot:
     points: int
+    energy_wh: float
     rows: list[list[float] | None] = field(default_factory=list)
 
 
@@ -155,12 +183,13 @@ class ProgramMatcher:
 
     def __init__(self, references: dict[str, list[CycleRecord]]) -> None:
         self._refs = [
-            _Reference(program, c.id, vec)
+            _Reference(program, c.id, [level(w) for w in watts], cumulative_wh(watts))
             for program, cycles in references.items()
             for c in cycles
-            if len(vec := curve(c)) >= MIN_POINTS
+            if len(watts := resample(c.trace, c.duration())) >= MIN_POINTS
         ]
         self._points = 0
+        self._energy: list[float] = []
 
     @property
     def programs(self) -> set[str]:
@@ -168,14 +197,23 @@ class ProgramMatcher:
 
     def update(self, cycle: CycleRecord, now: float) -> None:
         """Feed the windows of `cycle` completed since the last call."""
-        query = curve(cycle, now)
+        watts = resample(cycle.trace, cycle.duration(now))
+        query = [level(w) for w in watts]
+        self._energy = cumulative_wh(watts)
         for q in query[self._points :]:
             for ref in self._refs:
                 ref.row = _next_row(ref.row, ref.curve, q)
         self._points = max(self._points, len(query))
 
     def snapshot(self) -> _Snapshot:
-        return _Snapshot(self._points, [list(r.row) if r.row else None for r in self._refs])
+        return _Snapshot(
+            self._points,
+            self._energy_at(self._points),
+            [list(r.row) if r.row else None for r in self._refs],
+        )
+
+    def _energy_at(self, points: int) -> float:
+        return self._energy[points - 1] if 0 < points <= len(self._energy) else 0.0
 
     def result(
         self, elapsed_s: float, forced_program: str | None = None, show: float = SHOW_CONFIDENCE
@@ -188,7 +226,8 @@ class ProgramMatcher:
         for ref in self._refs:
             assert ref.row is not None
             j = min(_band(n, len(ref.row)), key=ref.row.__getitem__)
-            per_program.setdefault(ref.program, []).append((ref.row[j] / n, j, len(ref.curve)))
+            score = ref.row[j] / n + energy_penalty(self._energy_at(n), ref.energy[j])
+            per_program.setdefault(ref.program, []).append((score, j, len(ref.curve)))
         ranked = sorted((min(s for s, _, _ in v), p) for p, v in per_program.items())
         candidates = tuple((p, round(s, 3)) for s, p in ranked)
 
@@ -235,7 +274,7 @@ class ProgramMatcher:
             m = len(ref.curve)
             if row is None or max(n, m) / min(n, m) > MAX_LENGTH_RATIO:
                 continue
-            score = row[m - 1] / max(n, m)
+            score = row[m - 1] / max(n, m) + energy_penalty(snap.energy_wh, ref.energy[-1])
             per_program[ref.program] = min(score, per_program.get(ref.program, math.inf))
         if not per_program:
             return None

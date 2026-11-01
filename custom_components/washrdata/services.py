@@ -19,6 +19,7 @@ ATTR_DEVICE_ID = "device_id"
 ATTR_PROGRAM = "program"
 ATTR_CYCLE = "cycle"
 ATTR_NEW_NAME = "new_name"
+ATTR_MERGE = "merge"
 
 SERVICE_LABEL_CYCLE = "label_cycle"
 SERVICE_CREATE_PROGRAM = "create_program"
@@ -43,6 +44,7 @@ SCHEMAS = {
             vol.Required(ATTR_DEVICE_ID): cv.string,
             vol.Required(ATTR_PROGRAM): cv.string,
             vol.Required(ATTR_NEW_NAME): _PROGRAM,
+            vol.Optional(ATTR_MERGE, default=False): cv.boolean,
         }
     ),
     SERVICE_DELETE_PROGRAM: vol.Schema(
@@ -85,7 +87,7 @@ def _create_program(device: WashRDataDevice, call: ServiceCall) -> None:
 def _rename_program(device: WashRDataDevice, call: ServiceCall) -> None:
     old, new = call.data[ATTR_PROGRAM], call.data[ATTR_NEW_NAME]
     try:
-        device.tracker.rename_program(old, new)
+        device.tracker.rename_program(old, new, merge=call.data[ATTR_MERGE])
     except KeyError:
         raise _error("unknown_program", program=old) from None
     except ValueError:

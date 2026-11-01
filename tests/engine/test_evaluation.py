@@ -136,17 +136,18 @@ def _real_washes() -> list:
 
 
 def test_a_new_program_is_replayed_against_the_others() -> None:
-    """A first Pflegeleicht 60 looks like Pflegeleicht 30 but for longer heating:
-    recognition calls it Pflegeleicht 30 confidently enough to label it."""
+    """A first Pflegeleicht 60 looks like Pflegeleicht 30 but for longer heating.
+    By the curve alone recognition called it Pflegeleicht 30 at 63 %, enough to
+    label it; its energy (1.26 against 0.69 kWh) now keeps it unsure."""
     cycles = _real_washes()
     evaluation = evaluate(cycles, [c.program for c in cycles])
     p60 = next(e for e in evaluation.cycles if e.program == "Pflegeleicht 60")
     assert p60.new_program
     assert p60.final == "Pflegeleicht 30"
-    assert p60.final_confidence >= 0.6
+    assert p60.final_confidence < 0.4
     assert p60.first_shown(0.25) is None
     row = next(r for r in evaluation.thresholds if r.threshold == 0.6)
-    assert row.auto_wrong >= 1
+    assert row.auto_wrong == 0
     assert evaluation.new_program_cycles == 3
     assert evaluation.note == "need_more"
 

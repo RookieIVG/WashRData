@@ -94,6 +94,7 @@ def _match_json(match: MatchResult | None) -> dict[str, Any] | None:
         "manual": match.manual,
         "recognised": match.recognised,
         "recognition_confidence": match.recognition_confidence,
+        "phase": match.phase,
         "remaining_s": match.remaining_s,
         "progress": match.progress,
         "candidates": [{"program": p, "score": s} for p, s in match.candidates],
@@ -265,6 +266,7 @@ def ws_split(hass: HomeAssistant, connection: websocket_api.ActiveConnection, ms
         vol.Required("entry_id"): str,
         vol.Required("program"): str,
         vol.Required("new_name"): vol.All(str, vol.Strip, vol.Length(min=1, max=60)),
+        vol.Optional("merge", default=False): bool,
     }
 )
 @callback
@@ -272,7 +274,7 @@ def ws_rename(hass: HomeAssistant, connection: websocket_api.ActiveConnection, m
     if (device := _find(hass, connection, msg)) is None:
         return
     try:
-        device.tracker.rename_program(msg["program"], msg["new_name"])
+        device.tracker.rename_program(msg["program"], msg["new_name"], merge=msg["merge"])
     except KeyError:
         connection.send_error(msg["id"], websocket_api.ERR_NOT_FOUND, "Unknown program")
         return

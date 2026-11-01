@@ -188,3 +188,15 @@ def test_labelled_cycles_outlive_recent_history() -> None:
         bench.run(QUICK, seed=1000 + seed)
     cotton = [c for c in bench.tracker.history if c.program == COTTON]
     assert len(cotton) == 2
+
+
+def test_merge_programs_by_renaming() -> None:
+    bench = trained(COTTON, QUICK)
+    tracker = bench.tracker
+    with pytest.raises(ValueError):
+        tracker.rename_program(QUICK, COTTON)
+    tracker.rename_program(QUICK, COTTON, merge=True)
+    assert tracker.programs == [COTTON]
+    assert all(c.program == COTTON for c in tracker.history)
+    assert all(c.known_programs.count(COTTON) <= 1 for c in tracker.history)
+    assert len(tracker.references()[COTTON]) == 4

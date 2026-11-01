@@ -1,6 +1,6 @@
 # WashRData: Konzept
 
-Stand: Version 0.2.9 (Programme und Erkennung), Oktober 2026.
+Stand: Version 0.2.10 (Programme und Erkennung), Oktober 2026.
 
 ## Ziel
 
@@ -157,6 +157,14 @@ bestpassenden *Anfang* der Referenz gelegt. Daraus kommen zwei Dinge:
 - die **Position** in der Referenz, ergibt Restzeit und Fortschritt. Die Restzeit ist der Median
   über die passenden Referenzen des Programms, damit verdirbt eine falsch benannte Referenz nichts.
 
+**Energie.** Programme, die sich nur in der Heizdauer unterscheiden (Super Speed 30 / 40 °C, Pflegeleicht
+30 / 60 °C), liegen Minute für Minute eng beieinander, in der Energie aber nicht. Zur Distanz kommt deshalb
+ein Aufschlag `0,15 · max(0, |ln(E_Lauf / E_Referenz)| − 0,2)`: bis etwa 22 % Unterschied ist das
+Streuung und kostet nichts. Live wird die Energie bis zur aktuellen Minute mit der Energie der Referenz
+bis zur ausgerichteten Stelle verglichen, am Ende die Gesamtenergie. An echten Läufen gewählt (0.2.10):
+bei 13 Waschmaschinen-Läufen benennt die Erkennung bei 60 % 5 statt 1 Lauf selbst richtig, beim Trockner
+ändert sich nichts. Getestet mit `tests/fixtures/washer_super_speed.json`.
+
 Zeitverzerrung (etwa eine längere Heizphase im Winter) kostet einen kleinen Aufschlag (0,05 pro
 Schritt). Gewarpt wird nur, wo es die Kurven wirklich besser übereinanderlegt. Insgesamt darf der
 bisherige Lauf höchstens auf ein 1,5-mal kürzeres oder längeres Stück der Referenz passen (plus 5 min
@@ -231,6 +239,21 @@ Auswertung läuft 30 s nach dem Start und nach jeder Änderung (beendeter Lauf, 
 eigenen Thread auf einer Kopie der Zyklen; eine volle Historie braucht etwa eine Sekunde. Das
 Ergebnis steht im Panel und im Diagnose-Download. Die Schwellen für Anzeige und Selbstbenennung sind
 je Gerät einstellbar (Optionen oder „Übernehmen“ im Panel), Standard 25 und 60 %.
+
+**Trockner-Restzeit.** Trockner mit Feuchtesensor trocknen, bis die Wäsche trocken ist: Mix Dry dauerte
+am meldenden Wärmepumpentrockner 27 bis 154 Minuten, die Restzeit aus den Referenzen lag im Schnitt
+26 Minuten daneben. Die Kühlphase am Ende ist dagegen gleichförmig: Die Heizung ist aus, die Trommel
+dreht mit einem Bruchteil der Trockenleistung, 15 bis 25 Minuten lang. Mit `sensor_drying` (Preset
+Trockner) zeigt `engine/drying.py` deshalb während des Trocknens keine Restzeit (`phase: drying`, im Panel
+„trocknet, das Ende hängt von der Feuchte ab“) und ab der Kühlphase (mindestens 4 Minuten in Folge
+höchstens 40 % der Trockenleistung, bis zum aktuellen Ende) die mittlere Kühldauer der Referenzen
+abzüglich der schon gekühlten Zeit (`phase: cooling`). An den echten Läufen liegt diese Restzeit im
+Schnitt etwa 6 Minuten daneben, rund 15 Minuten vor dem Ende. Die Auswertung misst beim Trockner die
+Restzeit deshalb ab Beginn der Kühlphase statt bei 25/50/75 %.
+
+**Zusammenführen.** Umbenennen auf einen vorhandenen Namen führt beide Programme zusammen (Panel nach
+Rückfrage, Dienst `rename_program` mit `merge: true`, WebSocket `merge`). Die Läufe des einen werden
+Läufe des anderen, auch in `recognised` und `known_programs`.
 
 **Speicher.** Die letzten 50 Zyklen bleiben erhalten, dazu je Programm die letzten 10 benannten,
 auch wenn sie älter sind.
@@ -328,6 +351,7 @@ und `remaining_min`.
 | **0.2.7** | Läufe teilen: In der App einen Lauf mit zwei Wäschen an der Pause dazwischen (oder an einer angetippten Stelle) in zwei Läufe teilen; Energie und Kosten werden aufgeteilt, die Lücke aus der gelernten Endverzögerung entfernt. Zeitfenster zum Fortsetzen und maximale Endverzögerung in den Erkennungseinstellungen. Getestet an einer echten Kurve mit zwei zusammengelegten Wäschen |
 | **0.2.8** | Trockner: Knitterschutz-Drehungen am Ende (alle ~30 s für wenige Sekunden) beenden den Zyklus dort, wo sie beginnen; „fertig“ kommt 20 bis 30 min früher, gespeicherte Läufe werden einmalig gekürzt. Auswertung: Der erste Lauf eines Programms wird mitgeprüft, damit keine Schwelle empfohlen wird, bei der ein neues Programm falsch benannt würde. Beides getestet an echten Kurven |
 | **0.2.9** | App: Erkennung je Lauf mit drei Zeichen: ✓ richtig und sicher genug zum Selbstbenennen, ○ richtig getippt, aber zu unsicher, ✗ falsch, auch beim ersten Lauf eines neuen Programms, der einen fremden Namen bekommen hätte. Trefferquote weist „richtig, aber unsicher“ getrennt aus (auch als Attribut `unsure`) |
+| **0.2.10** | Energie als zweites Merkmal der Erkennung: Programme, die sich nur in der Heizdauer unterscheiden, werden sicherer erkannt (an echten Läufen: 5 statt 1 sicher richtig benannt). Trockner: Restzeit erst ab der Kühlphase, vorher „trocknet“; ab Kühlphase im Schnitt ~6 statt 26 Minuten daneben. Programme zusammenführen: Umbenennen auf einen vorhandenen Namen |
 | **0.2.x** | Kalibrierung der Schwellen an echten Kurven aus Diagnose-Dateien (Testkorpus, Leave-one-out-Messung); bei Bedarf Import alter Zyklen aus dem Recorder |
 | **0.3 Zusatzsensoren und Benachrichtigungen** | Türkontakt (Ende bestätigen, Erinnerung „Wäsche noch drin“), Vibrationssensor (Pause oder Ende unterscheiden, Leistung allein reicht dafür nicht immer), Wasserzähler; Blueprints für Benachrichtigungen, Vorwarnung vor dem Ende |
 | **0.4 Kosten und Tarife** | Kosten pro Zyklus mit fester oder dynamischer Preis-Entität (Tibber, Nordpool, EPEX); Empfehlung für die günstigste Startzeit: Programmprofil mal Preiskurve; Startzeit nach PV-Prognose (Forecast.Solar, Solcast) |
@@ -359,8 +383,6 @@ und `remaining_min`.
   und müssen an echten Kurven geprüft werden. Erster Befund an echten Waschmaschinen-Läufen (0.2.8):
   Läufe desselben Programms liegen 0,11 bis 0,2 auseinander, „unbekannt“ tritt mit 0,25 an, deshalb
   bleibt die Sicherheit richtiger Erkennungen bei 33 bis 56 %.
-- **Vorgemerkt (C): Energie als zweites Merkmal der Erkennung.** Programme, die sich nur in der
-  Heizdauer unterscheiden (Pflegeleicht 30 / 60 °C: 0,5–0,7 gegen 1,26 kWh), liegen in der Kurven-
-  Distanz eng beieinander. Ein Aufschlag `0,1 · |ln(E_Lauf / E_Referenz)|` senkte im Versuch den
-  falschen Treffer von 73 auf 22 %, kostete aber Intensiv 60 °C Sicherheit (33 → 22 %). Erst mit 2 bis 3
-  benannten Läufen je Programm einstellen und an echten Kurven testen.
+- Pflegeleicht 30 °C und 40 °C derselben Maschine unterscheiden sich weder in der Kurve noch in der
+  Energie (0,69 gegen 0,71 kWh) erkennbar. Solche Programme besser zusammenführen (Umbenennen auf
+  den vorhandenen Namen).

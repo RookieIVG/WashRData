@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any
 
 from .bursts import cut_turns
 from .detector import CycleDetector
+from .drying import cooling_time, remaining_while_cooling
 from .evaluation import select_references
-from .matching import MatchResult, ProgramMatcher, _Snapshot
+from .matching import MatchResult, ProgramMatcher, _Snapshot, resample
 from .model import CycleRecord, DetectorConfig, Event, EventKind, LabelSource, State
 from .split import split_cycle
 
@@ -63,6 +64,8 @@ class Tracker:
         self._matcher: ProgramMatcher | None = None
         self._matcher_cycle: str | None = None
         self._checkpoint: _Snapshot | None = None
+        # Cooling time per reference cycle id (dryers), computed once.
+        self._cooling: dict[str, float | None] = {}
 
     @property
     def config(self) -> DetectorConfig:
@@ -113,6 +116,8 @@ class Tracker:
         forced = cycle.program if cycle.program_source == LabelSource.MANUAL else None
         previous = self.match.program if self.match else None
         self.match = matcher.result(cycle.duration(ts), forced, self.config.show_confidence)
+        if self.config.sensor_drying and self.match and self.match.program:
+            self.match = self._drying_match(self.match, cycle, ts)
         if self.match and self.match.program and self.match.program != previous:
             out.append(Event(EventKind.PROGRAM_DETECTED, ts, cycle))
         self.detector.hold_end = bool(
@@ -122,6 +127,29 @@ class Tracker:
             and (self.match.remaining_s or 0.0) >= HOLD_MIN_REMAINING_S
         )
         return out
+
+    def _drying_match(self, match: MatchResult, cycle: CycleRecord, ts: float) -> MatchResult:
+        """A dryer gets a remaining time only once it cools down (engine/drying.py)."""
+        assert match.program is not None
+        elapsed = cycle.duration(ts)
+        times = self._cooling_times(match.program)
+        remaining = remaining_while_cooling(resample(cycle.trace, elapsed), elapsed, times)
+        return replace(
+            match,
+            remaining_s=remaining,
+            expected_duration_s=elapsed + remaining if remaining is not None else None,
+            phase="drying" if remaining is None else "cooling",
+        )
+
+    def _cooling_times(self, program: str) -> list[float]:
+        refs = self.references().get(program, [])
+        times = []
+        for c in refs:
+            if c.id not in self._cooling:
+                self._cooling[c.id] = cooling_time(c)
+            if (t := self._cooling[c.id]) is not None:
+                times.append(t)
+        return times
 
     def _matcher_for(self, cycle: CycleRecord) -> ProgramMatcher:
         if self._matcher is None or self._matcher_cycle != cycle.id:
@@ -236,21 +264,29 @@ class Tracker:
         if name not in self.programs:
             self.programs.append(name)
 
-    def rename_program(self, old: str, new: str) -> None:
+    def rename_program(self, old: str, new: str, merge: bool = False) -> None:
+        """Rename a program; with `merge`, a name that exists merges both into it.
+
+        Merging suits programs recognition cannot tell apart (e.g. 30 and 40
+        degrees of the same program): their runs become references of one.
+        """
         new = new.strip()
         if old not in self.programs:
             raise KeyError(old)
         if not new:
             raise ValueError("empty program name")
         if new in self.programs and new != old:
-            raise ValueError(f"program {new!r} exists")
-        self.programs[self.programs.index(old)] = new
+            if not merge:
+                raise ValueError(f"program {new!r} exists")
+            self.programs.remove(old)
+        else:
+            self.programs[self.programs.index(old)] = new
         for c in self._all_cycles():
             if c.program == old:
                 c.program = new
             if c.recognised == old:
                 c.recognised = new
-            c.known_programs = [new if p == old else p for p in c.known_programs]
+            c.known_programs = list(dict.fromkeys(new if p == old else p for p in c.known_programs))
         self._invalidate()
 
     def delete_program(self, name: str) -> None:

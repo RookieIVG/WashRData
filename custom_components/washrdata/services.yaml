@@ -42,6 +42,10 @@ rename_program:
       required: true
       selector:
         text:
+    merge:
+      default: false
+      selector:
+        boolean:
 
 delete_program:
   fields:

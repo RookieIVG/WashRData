@@ -252,7 +252,10 @@ class WashRDataPanel extends HTMLElement {
       const rows = [
         [this.t("program"), program ? esc(program) + (match?.manual ? ` <span class="badge">${esc(this.t("manual"))}</span>` : "") : esc(this.t("unknown"))],
         [this.t("recognition"), match ? `${esc(match.recognised ?? this.t("unknown"))} · ${this._percent(match.recognition_confidence)}` : esc(this.t("too_early"))],
-        [this.t("remaining"), match?.remaining_s != null ? this._duration(match.remaining_s) : "–"],
+        [
+          this.t("remaining"),
+          match?.remaining_s != null ? this._duration(match.remaining_s) : match?.phase === "drying" ? esc(this.t("drying_phase")) : "–",
+        ],
         [this.t("running_for"), `${this._duration(cycle.duration_s)} · ${this._num(cycle.energy_kwh, 2)} kWh`],
       ];
       if (cycle.cost != null) rows.push([this.t("cost_so_far"), this._money(cycle.cost, device.currency)]);
@@ -340,7 +343,7 @@ class WashRDataPanel extends HTMLElement {
       const remaining = ev.remaining
         .map(
           (r) =>
-            `<tr><td>${this._percent(r.progress)}</td><td>${r.cycles}</td><td>${r.mean_abs_error_s == null ? "–" : `${Math.round(r.mean_abs_error_s / 60)} min`}</td><td>${this._offset(r.bias_s)}</td></tr>`
+            `<tr><td>${r.progress == null ? esc(this.t("from_cooling")) : this._percent(r.progress)}</td><td>${r.cycles}</td><td>${r.mean_abs_error_s == null ? "–" : `${Math.round(r.mean_abs_error_s / 60)} min`}</td><td>${this._offset(r.bias_s)}</td></tr>`
         )
         .join("");
       let advice = `<p class="muted">${esc(this.t(ev.note === "no_safe_threshold" ? "recommend_none" : "recommend_need", { count: 5 }))}</p>`;
@@ -572,7 +575,11 @@ class WashRDataPanel extends HTMLElement {
 
   async _rename(program) {
     const name = (prompt(this.t("rename_prompt", { program }), program) || "").trim();
-    if (name && name !== program) await this._call({ type: "washrdata/rename_program", program, new_name: name });
+    if (!name || name === program) return;
+    // An existing name merges both programs, after asking.
+    const merge = this._device().programs.includes(name);
+    if (merge && !confirm(this.t("merge_confirm", { program, into: name }))) return;
+    await this._call({ type: "washrdata/rename_program", program, new_name: name, merge });
   }
 
   async _delete(program) {

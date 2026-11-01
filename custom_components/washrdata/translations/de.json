@@ -148,7 +148,7 @@
         "cycle_count": "{count} Läufe",
         "rename": "Umbenennen",
         "delete": "Löschen",
-        "rename_prompt": "Neuer Name für {program}",
+        "rename_prompt": "Neuer Name für {program} (ein vorhandener Name führt beide zusammen)",
         "delete_confirm": "{program} löschen? Die Läufe bleiben erhalten, ohne Programm.",
         "cost_so_far": "Kosten bisher",
         "statistics": "Statistik je Programm",
@@ -202,7 +202,10 @@
         "unsure": "Unsicher",
         "unsure_of": "{count} weitere richtig getippt, aber zu unsicher zum Benennen.",
         "new_wrong_hint": "neues Programm, hätte diesen Namen bekommen",
-        "new_program_hint": "neues Programm"
+        "new_program_hint": "neues Programm",
+        "from_cooling": "Ab Kühlphase",
+        "drying_phase": "trocknet, das Ende hängt von der Feuchte ab; Restzeit ab der Kühlphase",
+        "merge_confirm": "{into} gibt es schon. {program} mit {into} zusammenführen? Alle Läufe von {program} werden zu {into}."
       }
     }
   },
@@ -319,7 +322,7 @@
     },
     "rename_program": {
       "name": "Programm umbenennen",
-      "description": "Benennt ein Programm um, samt seiner Zyklen.",
+      "description": "Benennt ein Programm um, samt seiner benannten Zyklen. Mit Zusammenführen werden bei einem vorhandenen Namen beide Programme zusammengelegt.",
       "fields": {
         "device_id": {
           "name": "Gerät",
@@ -332,6 +335,10 @@
         "new_name": {
           "name": "Neuer Name",
           "description": "Neuer Name."
+        },
+        "merge": {
+          "name": "Zusammenführen",
+          "description": "Umbenennen auf ein vorhandenes Programm führt beide zusammen: die Läufe gehen an dieses Programm."
         }
       }
     },

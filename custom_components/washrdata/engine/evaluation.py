@@ -15,7 +15,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field, replace
 from statistics import mean, median
 
-from .matching import MIN_POINTS, STEP_S, ProgramMatcher
+from .drying import cooling_time, remaining_while_cooling
+from .matching import MIN_POINTS, STEP_S, ProgramMatcher, resample
 from .model import CycleRecord, LabelSource
 
 REFS_PER_PROGRAM = 5
@@ -87,6 +88,13 @@ class CycleEvaluation:
             return None
         return point.remaining_s - (self.duration_s - minute * STEP_S)
 
+    def first_remaining_error(self) -> float | None:
+        """The error of the first remaining time given (dryers: when cooling begins)."""
+        point = next((m for m in self.minutes if m.remaining_s is not None), None)
+        if point is None or point.remaining_s is None:
+            return None
+        return point.remaining_s - (self.duration_s - point.minute * STEP_S)
+
 
 @dataclass(frozen=True)
 class ThresholdRow:
@@ -104,7 +112,8 @@ class ThresholdRow:
 
 @dataclass(frozen=True)
 class RemainingRow:
-    progress: float
+    # Share of the cycle; None for dryers: when cooling begins.
+    progress: float | None
     cycles: int
     mean_abs_error_s: float | None
     bias_s: float | None
@@ -127,7 +136,9 @@ class Evaluation:
         return sum(e.new_program for e in self.cycles)
 
 
-def evaluate_cycle(cycle: CycleRecord, references: dict[str, list[CycleRecord]]) -> CycleEvaluation | None:
+def evaluate_cycle(
+    cycle: CycleRecord, references: dict[str, list[CycleRecord]], sensor_drying: bool = False
+) -> CycleEvaluation | None:
     """Replay one finished cycle; None without any usable reference.
 
     A cycle whose program has no other run is replayed too, as a new program:
@@ -141,18 +152,23 @@ def evaluate_cycle(cycle: CycleRecord, references: dict[str, list[CycleRecord]])
     # An open copy, so the curve grows minute by minute as it did live.
     running = replace(cycle, end=None)
     duration = cycle.duration()
+    # Dryers: remaining time only from the cooling phase, as live (engine/drying.py).
+    cooling = [t for c in references.get(cycle.program, []) if (t := cooling_time(c)) is not None]
     minutes: list[Minute] = []
     for k in range(MIN_POINTS, int(duration // STEP_S) + 1):
         elapsed = k * STEP_S
         matcher.update(running, cycle.start + elapsed)
         free = matcher.result(elapsed)
         forced = matcher.result(elapsed, cycle.program)
+        remaining = forced.remaining_s if forced else None
+        if sensor_drying:
+            remaining = remaining_while_cooling(resample(running.trace, elapsed), elapsed, cooling)
         minutes.append(
             Minute(
                 k,
                 free.recognised if free else None,
                 round(free.recognition_confidence, 3) if free else 0.0,
-                forced.remaining_s if forced else None,
+                remaining,
             )
         )
     final = matcher.final()
@@ -182,8 +198,11 @@ def _threshold_row(evals: list[CycleEvaluation], t: float) -> ThresholdRow:
     )
 
 
-def _remaining_row(evals: list[CycleEvaluation], progress: float) -> RemainingRow:
-    errors = [err for e in evals if (err := e.remaining_error(progress)) is not None]
+def _remaining_row(evals: list[CycleEvaluation], progress: float | None) -> RemainingRow:
+    if progress is None:
+        errors = [err for e in evals if (err := e.first_remaining_error()) is not None]
+    else:
+        errors = [err for e in evals if (err := e.remaining_error(progress)) is not None]
     return RemainingRow(
         progress=progress,
         cycles=len(errors),
@@ -219,19 +238,20 @@ def _recommend(
     return min(show, auto), auto, None
 
 
-def evaluate(cycles: list[CycleRecord], programs: list[str]) -> Evaluation:
+def evaluate(cycles: list[CycleRecord], programs: list[str], sensor_drying: bool = False) -> Evaluation:
     evals = [
         e
         for c in cycles
         if c.program and not c.interrupted
-        if (e := evaluate_cycle(c, select_references(cycles, programs, exclude=c.id))) is not None
+        if (e := evaluate_cycle(c, select_references(cycles, programs, exclude=c.id), sensor_drying))
+        is not None
     ]
     rows = [_threshold_row(evals, t) for t in THRESHOLDS]
     show, auto, note = _recommend(rows, evals)
     return Evaluation(
         cycles=evals,
         thresholds=rows,
-        remaining=[_remaining_row(evals, p) for p in PROGRESS_POINTS],
+        remaining=[_remaining_row(evals, p) for p in ((None,) if sensor_drying else PROGRESS_POINTS)],
         recommended_show=show,
         recommended_auto=auto,
         note=note,

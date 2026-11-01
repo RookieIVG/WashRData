@@ -52,6 +52,7 @@ def _program_attrs(d: WashRDataDevice) -> dict[str, Any] | None:
     return {
         "confidence": round(match.confidence * 100),
         "manual": match.manual,
+        "phase": match.phase,
         "candidates": [{"program": p, "score": s} for p, s in match.candidates],
     }
 
