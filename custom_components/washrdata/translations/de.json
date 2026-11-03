@@ -220,7 +220,15 @@
         "new_program_hint": "neues Programm",
         "from_cooling": "Ab Kühlphase",
         "drying_phase": "trocknet, das Ende hängt von der Feuchte ab; Restzeit ab der Kühlphase",
-        "merge_confirm": "{into} gibt es schon. {program} mit {into} zusammenführen? Alle Läufe von {program} werden zu {into}."
+        "merge_confirm": "{into} gibt es schon. {program} mit {into} zusammenführen? Alle Läufe von {program} werden zu {into}.",
+        "phase": "Phase",
+        "phase_filling": "Wasser einlassen",
+        "phase_heating": "Heizen",
+        "phase_washing": "Waschen",
+        "phase_rinsing": "Spülen",
+        "phase_spinning": "Schleudern",
+        "phase_drying": "Trocknen",
+        "phase_cooling": "Kühlen"
       }
     }
   },
@@ -262,6 +270,18 @@
       },
       "end_delay": {
         "name": "Endverzögerung"
+      },
+      "phase": {
+        "name": "Phase",
+        "state": {
+          "filling": "Wasser einlassen",
+          "heating": "Heizen",
+          "washing": "Waschen",
+          "rinsing": "Spülen",
+          "spinning": "Schleudern",
+          "drying": "Trocknen",
+          "cooling": "Kühlen"
+        }
       },
       "program": {
         "name": "Programm"

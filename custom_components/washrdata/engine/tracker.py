@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, replace
 from typing import Any
 
@@ -11,6 +12,7 @@ from .drying import cooling_time, remaining_while_cooling
 from .evaluation import select_references
 from .matching import MatchResult, ProgramMatcher, _Snapshot, resample
 from .model import CycleRecord, DetectorConfig, Event, EventKind, LabelSource, State
+from .phases import WINDOW_S, Phase, cycle_segments, heating_to_end, label, remaining_after_heating, windows
 from .split import split_cycle
 
 KEEP_RECENT = 50
@@ -64,8 +66,12 @@ class Tracker:
         self._matcher: ProgramMatcher | None = None
         self._matcher_cycle: str | None = None
         self._checkpoint: _Snapshot | None = None
-        # Cooling time per reference cycle id (dryers), computed once.
-        self._cooling: dict[str, float | None] = {}
+        # Per-reference times (cooling, heating to end), computed once.
+        self._ref_cache: dict[tuple[str, str], float | None] = {}
+        # Phase of the running cycle and its labels, updated once per window.
+        self.phase: Phase | None = None
+        self._phases: list[Phase] = []
+        self._phase_key: tuple[str, int] | None = None
 
     @property
     def config(self) -> DetectorConfig:
@@ -103,8 +109,10 @@ class Tracker:
         cycle = self.detector.cycle
         if cycle is None:
             self.match = None
+            self.phase = None
             self.detector.hold_end = False
             return out
+        phases = self._phases_of(cycle, ts)
 
         matcher = self._matcher_for(cycle)
         if self.detector.state == State.PAUSED:
@@ -118,6 +126,8 @@ class Tracker:
         self.match = matcher.result(cycle.duration(ts), forced, self.config.show_confidence)
         if self.config.sensor_drying and self.match and self.match.program:
             self.match = self._drying_match(self.match, cycle, ts)
+        elif self.match and self.match.program:
+            self.match = self._washing_match(self.match, cycle, ts, phases)
         if self.match and self.match.program and self.match.program != previous:
             out.append(Event(EventKind.PROGRAM_DETECTED, ts, cycle))
         self.detector.hold_end = bool(
@@ -141,13 +151,46 @@ class Tracker:
             phase="drying" if remaining is None else "cooling",
         )
 
+    def _washing_match(
+        self, match: MatchResult, cycle: CycleRecord, ts: float, phases: list[Phase]
+    ) -> MatchResult:
+        """Once heating is over, the remaining time comes from the references'
+        time from heating to end (engine/phases.py); before, from the alignment."""
+        assert match.program is not None
+        elapsed = cycle.duration(ts)
+        times = self._ref_times("heating", match.program, heating_to_end)
+        remaining = remaining_after_heating(phases, elapsed, times)
+        if remaining is None:
+            return match
+        return replace(match, remaining_s=remaining, expected_duration_s=elapsed + remaining)
+
+    def _phases_of(self, cycle: CycleRecord, ts: float) -> list[Phase]:
+        """Phases of the running cycle, recomputed once per new window; sets `phase`."""
+        elapsed = cycle.duration(ts)
+        key = (cycle.id, int(elapsed // WINDOW_S))
+        if key != self._phase_key:
+            self._phase_key = key
+            if self.config.sensor_drying:
+                segs = cycle_segments(cycle, True, ts)
+                self._phases = [s.phase for s in segs]
+            else:
+                self._phases = label(windows(cycle.trace, elapsed))
+        self.phase = self._phases[-1] if self._phases else None
+        return self._phases
+
     def _cooling_times(self, program: str) -> list[float]:
-        refs = self.references().get(program, [])
+        return self._ref_times("cooling", program, cooling_time)
+
+    def _ref_times(
+        self, kind: str, program: str, measure: Callable[[CycleRecord], float | None]
+    ) -> list[float]:
+        """A per-reference time (cooling, heating to end), measured once per cycle."""
         times = []
-        for c in refs:
-            if c.id not in self._cooling:
-                self._cooling[c.id] = cooling_time(c)
-            if (t := self._cooling[c.id]) is not None:
+        for c in self.references().get(program, []):
+            key = (kind, c.id)
+            if key not in self._ref_cache:
+                self._ref_cache[key] = measure(c)
+            if (t := self._ref_cache[key]) is not None:
                 times.append(t)
         return times
 

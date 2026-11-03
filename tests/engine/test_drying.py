@@ -83,3 +83,12 @@ def test_evaluation_measures_remaining_time_in_cooling_only() -> None:
     assert row.progress is None
     assert row.cycles >= 3
     assert row.mean_abs_error_s < 10 * MIN
+
+
+def test_dryer_phases_are_drying_then_cooling() -> None:
+    from engine.phases import Phase, cycle_segments
+
+    for cycle in _stored():
+        segs = cycle_segments(cycle, sensor_drying=True)
+        assert [s.phase for s in segs] == [Phase.DRYING, Phase.COOLING]
+        assert segs[1].end_s == pytest.approx(cycle.duration())

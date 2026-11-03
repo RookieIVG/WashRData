@@ -1,6 +1,6 @@
 # WashRData: Konzept
 
-Stand: Version 0.2.11 (Programme und Erkennung), Oktober 2026.
+Stand: Version 0.2.12 (Programme und Erkennung), Oktober 2026.
 
 ## Ziel
 
@@ -240,6 +240,25 @@ eigenen Thread auf einer Kopie der Zyklen; eine volle Historie braucht etwa eine
 Ergebnis steht im Panel und im Diagnose-Download. Die Schwellen für Anzeige und Selbstbenennung sind
 je Gerät einstellbar (Optionen oder „Übernehmen“ im Panel), Standard 25 und 60 %.
 
+**Phasen.** `engine/phases.py` teilt einen Waschgang aus der Leistung allein in Phasen, in Fenstern von 20 s:
+Wasser einlassen (unter 20 W, vor dem Heizen), Heizen (ab 1 kW), Waschen (Trommel, zwischen Heizen und erstem
+Schleudern), Spülen (Trommel nach dem ersten Schleudern) und Schleudern. Schleudern heißt: mindestens drei
+Fenster über dem 1,4-Fachen des Trommel-Niveaus (Median der Trommel-Fenster), frühestens 10 min nach dem Heizen,
+und entweder lang (ab 10 Fenstern, das Endschleudern) oder nach dem Abpumpen (ein Fenster unter dem 0,85-Fachen,
+ohne dass die Trommel ganz steht; Pflegeleicht wäscht mit Stopps fast auf 0 W, das ist kein Abpumpen). Das
+Abpumpen selbst ist meist im Rauschen der Trommel verborgen und keine eigene Phase. An 12 echten Läufen findet
+die Einteilung Heizen und Endschleudern in allen, Zwischenschleudern nicht in allen (dann steht „Waschen“ statt
+„Spülen“). Beim Trockner (`sensor_drying`) gibt es Trocknen und Kühlen (siehe unten). Die Phase zeigt
+`sensor.<name>_phase`, das Panel färbt die Kurven danach.
+
+**Restzeit ab dem Heizende.** Was nach dem Heizen kommt (Waschen, Spülen, Schleudern), dauert innerhalb eines
+Programms fast gleich lang; das Heizen selbst hängt von der Zulauftemperatur ab, das Waschen davor schwankt bei
+Pflegeleicht stark. Ist das Heizen vorbei, kommt die Restzeit deshalb aus dem Median der Referenzen „Heizende
+bis Ende“ abzüglich der seit dem Heizende vergangenen Zeit, vorher aus der Kurven-Ausrichtung. An 12 echten
+Läufen: ab der Hälfte des Laufs im Schnitt 3,1 statt 5,7 min daneben, ohne Tendenz (Test mit
+`tests/fixtures/washer_super_speed.json` und `washer_pflegeleicht.json`). Das Endschleudern als Anker bringt
+nichts: Es ist erst nach gut 3 min sicher erkannt, dann bleiben nur noch wenige Minuten.
+
 **Trockner-Restzeit.** Trockner mit Feuchtesensor trocknen, bis die Wäsche trocken ist: Mix Dry dauerte
 am meldenden Wärmepumpentrockner 27 bis 154 Minuten, die Restzeit aus den Referenzen lag im Schnitt
 26 Minuten daneben. Die Kühlphase am Ende ist dagegen gleichförmig: Die Heizung ist aus, die Trommel
@@ -285,6 +304,7 @@ Gespeichert wird verzögert (30 s) und sofort am Zyklusende.
 | `select.<name>_program` | Programm des laufenden, sonst des letzten Zyklus; Auswahl benennt ihn |
 | `sensor.<name>_recognition_confidence` | Sicherheit der Erkennung im laufenden Zyklus (%), Attribut `program` |
 | `sensor.<name>_recognition_accuracy` | Trefferquote der Erkennung (%), Attribute `cycles`, `hits`, `programs` |
+| `sensor.<name>_phase` | Phase des laufenden Zyklus: `filling`, `heating`, `washing`, `rinsing`, `spinning`; Trockner `drying`, `cooling` |
 | `sensor.<name>_cycle_cost`, `_last_cycle_cost` | Kosten des laufenden bzw. letzten Zyklus, nur mit Strompreis-Entität |
 | `sensor.<name>_time_remaining` | Restzeit (min) |
 | `sensor.<name>_expected_end` | Voraussichtliches Ende (Zeitstempel) |
@@ -363,6 +383,7 @@ und `remaining_min`.
 | **0.2.9** | App: Erkennung je Lauf mit drei Zeichen: ✓ richtig und sicher genug zum Selbstbenennen, ○ richtig getippt, aber zu unsicher, ✗ falsch, auch beim ersten Lauf eines neuen Programms, der einen fremden Namen bekommen hätte. Trefferquote weist „richtig, aber unsicher“ getrennt aus (auch als Attribut `unsure`) |
 | **0.2.10** | Energie als zweites Merkmal der Erkennung: Programme, die sich nur in der Heizdauer unterscheiden, werden sicherer erkannt (an echten Läufen: 5 statt 1 sicher richtig benannt). Trockner: Restzeit erst ab der Kühlphase, vorher „trocknet“; ab Kühlphase im Schnitt ~6 statt 26 Minuten daneben. Programme zusammenführen: Umbenennen auf einen vorhandenen Namen |
 | **0.2.11** | Sensoren nachträglich ändern: „Neu konfigurieren“ wählt Leistungssensor und optional den Energiezähler der Steckdose, Läufe und Programme bleiben. Mit Energiezähler kommen Energie und Kosten pro Lauf aus dem Zählerstand |
+| **0.2.12** | Phasen: `sensor.<name>_phase` zeigt Wasser einlassen, Heizen, Waschen, Spülen, Schleudern (Trockner: Trocknen, Kühlen); die App färbt die Kurven nach Phasen. Restzeit der Waschmaschine ab dem Heizende aus den Referenzen: an echten Läufen ~3 statt ~6 min daneben |
 | **0.2.x** | Kalibrierung der Schwellen an echten Kurven aus Diagnose-Dateien (Testkorpus, Leave-one-out-Messung); bei Bedarf Import alter Zyklen aus dem Recorder |
 | **0.3 Zusatzsensoren und Benachrichtigungen** | Türkontakt (Ende bestätigen, Erinnerung „Wäsche noch drin“), Vibrationssensor (Pause oder Ende unterscheiden, Leistung allein reicht dafür nicht immer), Wasserzähler; Blueprints für Benachrichtigungen, Vorwarnung vor dem Ende |
 | **0.4 Kosten und Tarife** | Kosten pro Zyklus mit fester oder dynamischer Preis-Entität (Tibber, Nordpool, EPEX); Empfehlung für die günstigste Startzeit: Programmprofil mal Preiskurve; Startzeit nach PV-Prognose (Forecast.Solar, Solcast) |

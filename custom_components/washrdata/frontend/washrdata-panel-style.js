@@ -46,6 +46,16 @@ export const STYLE = `
   .plot .mark { stroke: var(--secondary-text-color); stroke-width: 1; stroke-dasharray: 4 4; opacity: 0.7; }
   .plot .mark.chosen { stroke: var(--error-color, #c62828); stroke-dasharray: none; opacity: 1; }
   .split { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin-top: 8px; }
+  /* Phase colours, themeable through the variables. */
+  .phase-filling { --phase: var(--washrdata-filling-color, #9e9e9e); }
+  .phase-heating { --phase: var(--washrdata-heating-color, #e53935); }
+  .phase-washing { --phase: var(--washrdata-washing-color, #1e88e5); }
+  .phase-rinsing { --phase: var(--washrdata-rinsing-color, #00acc1); }
+  .phase-spinning { --phase: var(--washrdata-spinning-color, #8e24aa); }
+  .phase-drying { --phase: var(--washrdata-drying-color, #fb8c00); }
+  .phase-cooling { --phase: var(--washrdata-cooling-color, #00897b); }
+  .plot path.main[class*="phase-"] { stroke: var(--phase); }
+  .key[class*="phase-"] { background: var(--phase); height: 8px; width: 8px; border-radius: 50%; display: inline-block; }
   .plot .ref { stroke: var(--secondary-text-color); stroke-width: 1.2; opacity: 0.45; }
   .ylabel, .xlabel { position: absolute; font-size: 11px; color: var(--secondary-text-color); white-space: nowrap; }
   .ylabel { right: calc(100% + 6px); transform: translateY(-50%); }

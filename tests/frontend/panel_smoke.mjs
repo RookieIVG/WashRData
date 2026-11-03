@@ -126,6 +126,9 @@ async function check(engine) {
     assert.match(text, /○\s*Kurz 30 · 30 %\s*richtig, aber zu unsicher zum Benennen/);
     assert.match(text, /✗\s*Kurz 30 · 80 %\s*neues Programm, hätte diesen Namen bekommen/);
     assert.ok((await panel.locator(".verdict .hit").count()) >= 4);
+    // The running cycle is drawn in phase colours, with a legend.
+    assert.ok((await panel.locator("path.main.phase-heating").count()) >= 1, "heating drawn");
+    assert.match(text, /Phase\s*(Heizen|Waschen|Spülen|Schleudern|Wasser einlassen)/);
     assert.match(text, /nachträglich/);
     assert.match(text, /Kosten bisher/);
     assert.match(text, /€/);

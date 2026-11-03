@@ -19,6 +19,7 @@ from .device import WashRDataDevice
 from .engine import CycleRecord, MatchResult
 from .engine.evaluation import CycleEvaluation, Evaluation
 from .engine.matching import resample
+from .engine.phases import cycle_segments
 from .engine.split import quiet_stretches
 
 # Quiet stretches offered as split points per cycle.
@@ -58,13 +59,23 @@ def _evaluation_json(evaluation: Evaluation | None) -> dict[str, Any] | None:
     }
 
 
+def _phases(cycle: CycleRecord, sensor_drying: bool, now: float | None) -> list[list[Any]]:
+    """[phase, start min, end min] per phase segment, for the coloured curve."""
+    return [
+        [s.phase.value, round(s.start_s / 60, 2), round(s.end_s / 60, 2)]
+        for s in cycle_segments(cycle, sensor_drying, now)
+    ]
+
+
 def cycle_json(
     cycle: CycleRecord,
     references: set[str],
     now: float | None = None,
     evaluation: dict[str, Any] | None = None,
+    sensor_drying: bool = False,
 ) -> dict[str, Any]:
     return {
+        "phases": _phases(cycle, sensor_drying, now),
         "id": cycle.id,
         "start": cycle.start,
         "end": cycle.end,
@@ -120,7 +131,10 @@ def live_json(device: WashRDataDevice) -> dict[str, Any]:
     return {
         "entry_id": device.entry.entry_id,
         "state": tracker.state.value,
-        "current": cycle_json(tracker.cycle, refs, now) if tracker.cycle else None,
+        "current": cycle_json(tracker.cycle, refs, now, sensor_drying=tracker.config.sensor_drying)
+        if tracker.cycle
+        else None,
+        "phase": tracker.phase.value if tracker.phase and tracker.cycle else None,
         "match": _match_json(tracker.match),
         "revision": revision(device),
     }
@@ -151,7 +165,12 @@ def device_json(device: WashRDataDevice) -> dict[str, Any]:
             },
         },
         "cycles": [
-            cycle_json(c, refs, evaluation=_cycle_evaluation(evaluated.get(c.id), config.show_confidence))
+            cycle_json(
+                c,
+                refs,
+                evaluation=_cycle_evaluation(evaluated.get(c.id), config.show_confidence),
+                sensor_drying=config.sensor_drying,
+            )
             | {"split_points": [[round(a), round(b)] for a, b in quiet_stretches(c, config)[:SPLIT_POINTS]]}
             for c in reversed(tracker.history)
         ],

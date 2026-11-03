@@ -220,7 +220,15 @@
         "new_program_hint": "new program",
         "from_cooling": "Cooling starts",
         "drying_phase": "drying, the end depends on how damp the laundry is; remaining time once it cools",
-        "merge_confirm": "{into} already exists. Merge {program} into {into}? All runs of {program} become {into}."
+        "merge_confirm": "{into} already exists. Merge {program} into {into}? All runs of {program} become {into}.",
+        "phase": "Phase",
+        "phase_filling": "Filling",
+        "phase_heating": "Heating",
+        "phase_washing": "Washing",
+        "phase_rinsing": "Rinsing",
+        "phase_spinning": "Spinning",
+        "phase_drying": "Drying",
+        "phase_cooling": "Cooling"
       }
     }
   },
@@ -262,6 +270,18 @@
       },
       "end_delay": {
         "name": "End delay"
+      },
+      "phase": {
+        "name": "Phase",
+        "state": {
+          "filling": "Filling",
+          "heating": "Heating",
+          "washing": "Washing",
+          "rinsing": "Rinsing",
+          "spinning": "Spinning",
+          "drying": "Drying",
+          "cooling": "Cooling"
+        }
       },
       "program": {
         "name": "Program"

@@ -22,6 +22,7 @@ from homeassistant.util import dt as dt_util
 from . import WashRDataConfigEntry
 from .device import WashRDataDevice, cycle_summary
 from .engine import CycleRecord, State
+from .engine.phases import Phase
 from .entity import WashRDataEntity
 
 
@@ -116,6 +117,13 @@ SENSORS: tuple[WashRDataSensorDescription, ...] = (
         device_class=SensorDeviceClass.ENUM,
         options=[s.value for s in State],
         value_fn=lambda d: d.detector.state.value,
+    ),
+    WashRDataSensorDescription(
+        key="phase",
+        translation_key="phase",
+        device_class=SensorDeviceClass.ENUM,
+        options=[p.value for p in Phase],
+        value_fn=lambda d: d.tracker.phase.value if d.tracker.phase and d.detector.cycle else None,
     ),
     WashRDataSensorDescription(
         key="program",

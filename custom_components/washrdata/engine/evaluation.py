@@ -18,6 +18,7 @@ from statistics import mean, median
 from .drying import cooling_time, remaining_while_cooling
 from .matching import MIN_POINTS, STEP_S, ProgramMatcher, resample
 from .model import CycleRecord, LabelSource
+from .phases import heating_to_end, label, remaining_after_heating, windows
 
 REFS_PER_PROGRAM = 5
 # Thresholds the evaluation compares, as confidences.
@@ -154,6 +155,11 @@ def evaluate_cycle(
     duration = cycle.duration()
     # Dryers: remaining time only from the cooling phase, as live (engine/drying.py).
     cooling = [t for c in references.get(cycle.program, []) if (t := cooling_time(c)) is not None]
+    heating = (
+        []
+        if sensor_drying
+        else [t for c in references.get(cycle.program, []) if (t := heating_to_end(c)) is not None]
+    )
     minutes: list[Minute] = []
     for k in range(MIN_POINTS, int(duration // STEP_S) + 1):
         elapsed = k * STEP_S
@@ -163,6 +169,9 @@ def evaluate_cycle(
         remaining = forced.remaining_s if forced else None
         if sensor_drying:
             remaining = remaining_while_cooling(resample(running.trace, elapsed), elapsed, cooling)
+        else:
+            anchored = remaining_after_heating(label(windows(running.trace, elapsed)), elapsed, heating)
+            remaining = anchored if anchored is not None else remaining
         minutes.append(
             Minute(
                 k,

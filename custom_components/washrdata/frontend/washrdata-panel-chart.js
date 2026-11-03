@@ -48,10 +48,21 @@ export function chart(series, { live = false, marks = [], plot = null } = {}, { 
   for (let m = 0; m <= minutes; m += xStep) {
     labels += `<span class="xlabel" style="left:${x(m) / 10}%">${Math.floor(m / 60)}:${String(m % 60).padStart(2, "0")}</span>`;
   }
-  const lines = [...series]
-    .reverse()
-    .map((s) => `<path class="${s.main ? "main" : "ref"}${live && s.main ? " live" : ""}" d="${path(s.curve)}" />`)
-    .join("");
+  // The main curve is drawn in pieces, one colour per phase, when phases are given.
+  const draw = (s) => {
+    const cls = `${s.main ? "main" : "ref"}${live && s.main ? " live" : ""}`;
+    if (!s.main || !s.phases?.length) return `<path class="${cls}" d="${path(s.curve)}" />`;
+    return s.phases
+      .map(([phase, from, to]) => {
+        const a = Math.max(0, Math.floor(from));
+        const b = Math.min(s.curve.length - 1, Math.ceil(to));
+        if (b <= a) return "";
+        const piece = s.curve.slice(a, b + 1).map((v, i) => `${i ? "L" : "M"}${x(a + i).toFixed(1)},${y(v).toFixed(1)}`).join("");
+        return `<path class="${cls} phase-${esc(phase)}" d="${piece}" />`;
+      })
+      .join("");
+  };
+  const lines = [...series].reverse().map(draw).join("");
   for (const mark of marks) {
     grid += `<line class="mark${mark.chosen ? " chosen" : ""}" x1="${x(mark.minute)}" x2="${x(mark.minute)}" y1="0" y2="1000" />`;
   }

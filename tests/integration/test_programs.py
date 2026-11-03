@@ -214,3 +214,28 @@ async def test_new_program_text_labels_running_cycle(
     last = hass.states.get("sensor.washer_last_cycle_duration").attributes
     assert last["program"] == "Kurz 30"
     assert last["program_source"] == "manual"
+
+
+async def test_phase_sensor_follows_the_wash(
+    hass: HomeAssistant, freezer: FrozenDateTimeFactory, washer_entry: MockConfigEntry
+) -> None:
+    """The simulated cotton program: fill, heat, wash, drain, spin. The cycle is
+    confirmed only during the heating (the fill draws too little), so the
+    sensor starts there."""
+    await _setup(hass, washer_entry)
+    assert hass.states.get("sensor.washer_phase").state == "unknown"
+    curve = PROGRAMS[COTTON]
+    seen = []
+    for duration, watts in [(300, 1.5), *curve]:
+        hass.states.async_set(POWER, f"{watts:.1f}", W)
+        await hass.async_block_till_done()
+        for _ in range(max(1, round(duration / 30))):
+            freezer.tick(timedelta(seconds=30))
+            async_fire_time_changed(hass)
+            await hass.async_block_till_done()
+            state = hass.states.get("sensor.washer_phase").state
+            if state not in ("unknown", *seen[-1:]):
+                seen.append(state)
+    assert seen[:2] == ["heating", "washing"]
+    assert seen[-1] == "spinning"
+    assert hass.states.get("sensor.washer_phase").attributes["options"][0] == "filling"

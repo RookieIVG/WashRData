@@ -80,6 +80,7 @@ Lauf bearbeiten oder fertig.
 | `sensor.<name>_recognition_confidence` | Sicherheit der Erkennung im laufenden Zyklus (%) |
 | `sensor.<name>_recognition_accuracy` | Trefferquote der Erkennung (%), je Programm als Attribut |
 | `sensor.<name>_cycle_cost` / `_last_cycle_cost` | Kosten des laufenden bzw. letzten Zyklus (nur mit Strompreis) |
+| `sensor.<name>_phase` | Was die Maschine gerade macht: Wasser einlassen, Heizen, Waschen, Spülen, Schleudern; Trockner: Trocknen, Kühlen |
 | `sensor.<name>_time_remaining` | Restzeit (min); beim Trockner erst ab der Kühlphase, weil die Trockendauer von der Feuchte abhängt |
 | `sensor.<name>_expected_end` | Voraussichtliches Ende (Uhrzeit) |
 | `sensor.<name>_progress` | Fortschritt (%) |
@@ -154,8 +155,9 @@ haben keine Kosten.
 
 In der Seitenleiste steht der Menüpunkt **WashRData**, für alle Benutzer. Er zeigt je Gerät:
 
-- **Jetzt:** Zustand, Programm, Erkennung mit Sicherheit, Restzeit und die Kurve des laufenden
-  Zyklus über den Referenzen des erkannten Programms.
+- **Jetzt:** Zustand, Phase, Programm, Erkennung mit Sicherheit, Restzeit und die Kurve des laufenden
+  Zyklus über den Referenzen des erkannten Programms, eingefärbt nach Phasen (Heizen rot, Waschen blau,
+  Spülen türkis, Schleudern lila; Trockner: Trocknen orange, Kühlen grün).
 - **Erkennungsgenauigkeit:** Trefferquote gesamt und je Programm, mit Zahl der Referenzen.
 - **Zyklen:** alle gespeicherten Läufe mit Kurve, Programm (direkt änderbar, auch neu anlegen) und
   was die Erkennung gesagt hat (✓ Treffer, ✗ Fehler). Ein Klick auf den Lauf zeigt die große Kurve,

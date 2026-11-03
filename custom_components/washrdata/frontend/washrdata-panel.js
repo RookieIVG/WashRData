@@ -179,6 +179,15 @@ class WashRDataPanel extends HTMLElement {
 
   // -- charts -----------------------------------------------------------
 
+  // The phases of a cycle in order of appearance, with their colours.
+  _phaseLegend(cycle) {
+    const seen = [...new Set((cycle.phases || []).map(([phase]) => phase))];
+    if (!seen.length) return "";
+    return `<div class="legend">${seen
+      .map((p) => `<span class="key phase-${esc(p)}"></span>${esc(this.t(`phase_${p}`))}`)
+      .join("")}</div>`;
+  }
+
   _sparkline(curve) {
     return sparkline(curve);
   }
@@ -250,6 +259,7 @@ class WashRDataPanel extends HTMLElement {
     } else {
       const program = cycle.program || match?.program;
       const rows = [
+        [this.t("phase"), device.phase ? `<span class="key phase-${esc(device.phase)}"></span> ${esc(this.t(`phase_${device.phase}`))}` : "–"],
         [this.t("program"), program ? esc(program) + (match?.manual ? ` <span class="badge">${esc(this.t("manual"))}</span>` : "") : esc(this.t("unknown"))],
         [this.t("recognition"), match ? `${esc(match.recognised ?? this.t("unknown"))} · ${this._percent(match.recognition_confidence)}` : esc(this.t("too_early"))],
         [
@@ -264,7 +274,8 @@ class WashRDataPanel extends HTMLElement {
       body = `<div class="state">${esc(this.t(`state_${device.state}`))}</div>
         <dl>${rows.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${v}</dd>`).join("")}</dl>
         <div class="meter" title="${bar} %"><div style="width:${bar}%"></div></div>
-        ${this._chart([{ curve: cycle.curve, main: true }, ...refs], { live: true })}
+        ${this._chart([{ curve: cycle.curve, main: true, phases: cycle.phases }, ...refs], { live: true })}
+        ${this._phaseLegend(cycle)}
         ${refs.length ? `<div class="legend"><span class="key main"></span>${esc(this.t("this_cycle"))}<span class="key ref"></span>${esc(this.t("references_of", { program: program || match?.recognised }))}</div>` : ""}`;
     }
     return `<section class="card"><h2>${esc(this.t("now"))}</h2>${body}</section>`;
@@ -434,7 +445,8 @@ class WashRDataPanel extends HTMLElement {
     const options = [`<option value="">${esc(this.t("nothing"))}</option>`, ...device.programs.map((p) => `<option value="${esc(p)}"${p === compare ? " selected" : ""}>${esc(p)}</option>`)];
     return `<div class="detail">
       <label class="compare">${esc(this.t("compare_with"))} <select data-compare="${esc(c.id)}">${options.join("")}</select></label>
-      ${this._chart([{ curve: c.curve, main: true }, ...refs], { marks: this._splitMarks(c), plot: c.id })}
+      ${this._chart([{ curve: c.curve, main: true, phases: c.phases }, ...refs], { marks: this._splitMarks(c), plot: c.id })}
+      ${this._phaseLegend(c)}
       <div class="legend"><span class="key main"></span>${esc(this.t("this_cycle"))}${compare ? `<span class="key ref"></span>${esc(refs.length ? this.t("references_of", { program: compare }) : this.t("no_references", { program: compare }))}` : ""}</div>
       <div class="muted small">${esc(this.t("peak"))} ${c.peak_w} W</div>
       ${this._replay(c)}
