@@ -228,7 +228,10 @@
         "phase_rinsing": "Rinsing",
         "phase_spinning": "Spinning",
         "phase_drying": "Drying",
-        "phase_cooling": "Cooling"
+        "phase_cooling": "Cooling",
+        "connection_lost": "Connection to Home Assistant lost.",
+        "load_failed": "Could not load the data.",
+        "retrying": "Trying again …"
       }
     }
   },

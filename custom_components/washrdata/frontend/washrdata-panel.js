@@ -4,6 +4,7 @@
 
 // A static import: no top-level await, so the element is defined by the time
 // Home Assistant's script load event fires and it creates the panel.
+import { evaluationCard, statsCard } from "./washrdata-panel-cards.js";
 import { chart, esc, sparkline } from "./washrdata-panel-chart.js";
 import { STYLE } from "./washrdata-panel-style.js";
 
@@ -25,6 +26,13 @@ class WashRDataPanel extends HTMLElement {
     this._pending = null;
     this._last = 0;
     this._changed = new Set(); // entry ids with news since the last refresh
+    this._retryMs = 0; // delay of the next retry after a failed load
+    this._retryTimer = null;
+    // Back in the app or the tab: the connection may have dropped meanwhile.
+    this._onVisible = () => {
+      if (document.visibilityState === "visible" && this._hass) this._reconnect();
+    };
+    this._onReady = () => this._reconnect();
     // Properties set before the element was defined sit on the instance and
     // would hide the setters; hand them to the setters instead.
     for (const prop of ["narrow", "panel", "hass"]) {
@@ -53,10 +61,22 @@ class WashRDataPanel extends HTMLElement {
   disconnectedCallback() {
     this._unsub?.then((unsub) => unsub()).catch(() => {});
     this._unsub = null;
+    document.removeEventListener("visibilitychange", this._onVisible);
+    this._hass?.connection?.removeEventListener?.("ready", this._onReady);
   }
 
   connectedCallback() {
-    if (this._hass && !this._unsub) this._subscribe();
+    document.addEventListener("visibilitychange", this._onVisible);
+    if (this._hass && this._loaded) {
+      this._hass.connection?.addEventListener?.("ready", this._onReady);
+      this._reconnect();
+    }
+  }
+
+  // Subscribe again if needed and load everything fresh.
+  _reconnect() {
+    if (!this._unsub) this._subscribe();
+    this._load();
   }
 
   async _init() {
@@ -73,16 +93,23 @@ class WashRDataPanel extends HTMLElement {
     }
     await this._load();
     this._subscribe();
+    this._hass.connection?.addEventListener?.("ready", this._onReady);
+    document.addEventListener("visibilitychange", this._onVisible);
   }
 
   _subscribe() {
-    this._unsub = this._hass.connection.subscribeMessage(
+    const unsub = this._hass.connection.subscribeMessage(
       (event) => {
         this._changed.add(event.entry_id);
         this._scheduleRefresh();
       },
       { type: "washrdata/subscribe" }
     );
+    this._unsub = unsub;
+    // Without a connection the subscription fails; the next reconnect tries again.
+    unsub.catch(() => {
+      if (this._unsub === unsub) this._unsub = null;
+    });
   }
 
   // Power reports arrive every few seconds while a cycle runs; refresh at most every REFRESH_MS.
@@ -116,15 +143,28 @@ class WashRDataPanel extends HTMLElement {
 
   async _load() {
     this._last = Date.now();
+    clearTimeout(this._retryTimer);
     try {
       const res = await this._hass.callWS({ type: "washrdata/overview" });
       this._devices = res.devices;
       this._error = null;
+      this._retryMs = 0;
     } catch (err) {
-      this._error = err.message || String(err);
+      // Keep what is shown and try again, waiting longer each time (up to 30 s):
+      // after the app was in the background the connection needs a moment.
+      this._error = this._errorText(err);
+      this._retryMs = Math.min(30000, (this._retryMs || 1000) * 2);
+      this._retryTimer = setTimeout(() => this._reconnect(), this._retryMs);
     }
     this._loaded = true;
     this._render();
+  }
+
+  // Home Assistant rejects with an error code (3: connection lost) or {code, message}.
+  _errorText(err) {
+    if (err === 3 || err?.code === 3) return this.t("connection_lost");
+    if (typeof err === "string") return err;
+    return err?.message || err?.error?.message || this.t("load_failed");
   }
 
   t(key, vars = {}) {
@@ -227,7 +267,10 @@ class WashRDataPanel extends HTMLElement {
 
   _body() {
     if (!this._loaded) return `<div class="empty">…</div>`;
-    if (this._error) return `<div class="card error">${esc(this._error)}</div>`;
+    if (this._error && !this._devices.length) {
+      return `<div class="card error">${esc(this._error)}<div class="muted small">${esc(this.t("retrying"))}</div></div>`;
+    }
+    const banner = this._error ? `<div class="banner">${esc(this._error)} · ${esc(this.t("retrying"))}</div>` : "";
     if (!this._devices.length) return `<div class="card empty">${esc(this.t("no_devices"))}</div>`;
     const device = this._device();
     this._selected = device.entry_id;
@@ -240,7 +283,7 @@ class WashRDataPanel extends HTMLElement {
             )
             .join("")}</div>`
         : "";
-    return `${tabs}<div class="grid">
+    return `${banner}${tabs}<div class="grid">
         ${this._now(device)}
         ${this._accuracy(device)}
       </div>
@@ -300,82 +343,12 @@ class WashRDataPanel extends HTMLElement {
     </section>`;
   }
 
-  // Per program: how long, how much energy and money, how often.
   _stats(device) {
-    const done = device.cycles.filter((c) => c.program && !c.interrupted);
-    if (!done.length) return "";
-    const starts = device.cycles.map((c) => c.start);
-    const weeks = Math.max(1, (Math.max(...starts) - Math.min(...starts)) / 604800);
-    const avg = (xs) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);
-    const withCost = done.some((c) => c.cost != null);
-    const rows = device.programs
-      .map((p) => {
-        const cs = done.filter((c) => c.program === p);
-        if (!cs.length) return "";
-        const durations = cs.map((c) => c.duration_s);
-        const costs = cs.map((c) => c.cost).filter((v) => v != null);
-        const span = cs.length > 1 ? `<span class="muted small"> (${this._duration(Math.min(...durations))}–${this._duration(Math.max(...durations))})</span>` : "";
-        return `<tr><td>${esc(p)}</td><td>${cs.length}</td><td>${this._duration(avg(durations))}${span}</td>
-          <td>${this._num(avg(cs.map((c) => c.energy_kwh)), 2)} kWh</td>
-          ${withCost ? `<td>${costs.length ? this._money(avg(costs), device.currency) : "–"}</td>` : ""}
-          <td>${this._num(cs.length / weeks, 1)}</td></tr>`;
-      })
-      .join("");
-    return `<section class="card"><h2>${esc(this.t("statistics"))}</h2>
-      <div class="scroll"><table><thead><tr><th>${esc(this.t("program"))}</th><th>${esc(this.t("runs"))}</th><th>${esc(this.t("avg_duration"))}</th>
-        <th>${esc(this.t("avg_energy"))}</th>${withCost ? `<th>${esc(this.t("avg_cost"))}</th>` : ""}<th>${esc(this.t("per_week"))}</th></tr></thead>
-        <tbody>${rows}</tbody></table></div>
-      <p class="muted small">${esc(this.t("statistics_help"))}</p>
-    </section>`;
+    return statsCard(this, device);
   }
 
-  // Leave-one-out replay of the stored cycles: thresholds and remaining time.
   _evaluation(device) {
-    const ev = device.evaluation;
-    const th = device.thresholds;
-    let body;
-    if (!ev) {
-      body = `<div class="empty">${esc(this.t("evaluation_pending"))}</div>`;
-    } else if (!ev.cycles) {
-      body = `<div class="empty">${esc(this.t("evaluation_empty"))}</div>`;
-    } else {
-      const near = (a, b) => b != null && Math.abs(a - b) < 0.001;
-      const rows = ev.thresholds
-        .map((r) => {
-          const marks = [near(r.threshold, th.show) ? this.t("now_show") : "", near(r.threshold, th.auto) ? this.t("now_auto") : ""]
-            .filter(Boolean)
-            .join(", ");
-          const best = near(r.threshold, ev.recommended_show) || near(r.threshold, ev.recommended_auto);
-          return `<tr class="${best ? "best" : ""}"><td>${this._percent(r.threshold)}${marks ? ` <span class="badge">${esc(marks)}</span>` : ""}</td>
-            <td>${r.wrong_shown}</td><td>${r.never_shown}</td><td>${r.first_shown_min == null ? "–" : `${Math.round(r.first_shown_min)} min`}</td>
-            <td>${r.auto_correct}</td><td>${r.auto_wrong}</td><td>${r.auto_missed}</td></tr>`;
-        })
-        .join("");
-      const remaining = ev.remaining
-        .map(
-          (r) =>
-            `<tr><td>${r.progress == null ? esc(this.t("from_cooling")) : this._percent(r.progress)}</td><td>${r.cycles}</td><td>${r.mean_abs_error_s == null ? "–" : `${Math.round(r.mean_abs_error_s / 60)} min`}</td><td>${this._offset(r.bias_s)}</td></tr>`
-        )
-        .join("");
-      let advice = `<p class="muted">${esc(this.t(ev.note === "no_safe_threshold" ? "recommend_none" : "recommend_need", { count: 5 }))}</p>`;
-      if (ev.recommended_show != null && ev.recommended_auto != null) {
-        const same = near(ev.recommended_show, th.show) && near(ev.recommended_auto, th.auto);
-        advice = `<p>${esc(this.t("recommend", { show: this._percent(ev.recommended_show), auto: this._percent(ev.recommended_auto) }))}
-          ${same ? `<span class="muted"> · ${esc(this.t("recommend_applied"))}</span>` : `<button class="text" data-thresholds="${ev.recommended_show},${ev.recommended_auto}">${esc(this.t("apply"))}</button>`}</p>`;
-      }
-      const newer = ev.new_program_cycles ? ` ${this.t("evaluation_new", { count: ev.new_program_cycles })}` : "";
-      body = `<p class="muted">${esc(this.t("evaluation_intro", { count: ev.cycles }) + newer)}</p>
-        ${advice}
-        <h3>${esc(this.t("thresholds"))}</h3>
-        <div class="scroll"><table><thead><tr><th>${esc(this.t("threshold"))}</th><th>${esc(this.t("wrong_shown"))}</th><th>${esc(this.t("never_shown"))}</th>
-          <th>${esc(this.t("shown_after"))}</th><th>${esc(this.t("auto_correct"))}</th><th>${esc(this.t("auto_wrong"))}</th><th>${esc(this.t("auto_missed"))}</th></tr></thead>
-          <tbody>${rows}</tbody></table></div>
-        <h3>${esc(this.t("remaining_accuracy"))}</h3>
-        <table><thead><tr><th>${esc(this.t("at_progress"))}</th><th>${esc(this.t("runs"))}</th><th>${esc(this.t("mean_error"))}</th><th>${esc(this.t("bias"))}</th></tr></thead>
-          <tbody>${remaining}</tbody></table>
-        <p class="muted small">${esc(this.t("evaluation_help"))}</p>`;
-    }
-    return `<section class="card"><h2>${esc(this.t("evaluation"))}</h2>${body}</section>`;
+    return evaluationCard(this, device);
   }
 
   _refs(device, program, exclude) {
@@ -559,7 +532,7 @@ class WashRDataPanel extends HTMLElement {
     try {
       await this._hass.callWS({ entry_id: this._selected, ...msg });
     } catch (err) {
-      alert(err.message || String(err));
+      alert(this._errorText(err));
     }
     await this._load();
   }

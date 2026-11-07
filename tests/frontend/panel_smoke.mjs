@@ -13,6 +13,7 @@ const files = {
   "/washrdata-panel.js": "custom_components/washrdata/frontend/washrdata-panel.js",
   "/washrdata-panel-style.js": "custom_components/washrdata/frontend/washrdata-panel-style.js",
   "/washrdata-panel-chart.js": "custom_components/washrdata/frontend/washrdata-panel-chart.js",
+  "/washrdata-panel-cards.js": "custom_components/washrdata/frontend/washrdata-panel-cards.js",
   "/overview.json": "tests/frontend/overview.json",
   "/de.json": "custom_components/washrdata/translations/de.json",
 };
@@ -26,6 +27,8 @@ const page = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewp
   const resources = Object.fromEntries(Object.entries(de.selector.panel.options)
     .map(([k, v]) => ["component.washrdata.selector.panel.options." + k, v]));
   window.calls = [];
+  // Overview calls that fail first, as after the app was in the background (3: connection lost).
+  window.failNext = Number(new URLSearchParams(location.search).get("fail") || 0);
   window.emit = null;
   window.revision = overview.devices[0].revision;
   const hass = {
@@ -34,7 +37,13 @@ const page = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewp
     callWS: async (msg) => {
       window.calls.push(msg);
       if (msg.type === "frontend/get_translations") return { resources };
-      if (msg.type === "washrdata/overview") return overview;
+      if (msg.type === "washrdata/overview") {
+        if (window.failNext > 0) {
+          window.failNext -= 1;
+          throw { code: 3, message: undefined };
+        }
+        return overview;
+      }
       if (msg.type === "washrdata/live") {
         const d = overview.devices[0];
         return { entry_id: d.entry_id, state: d.state, current: d.current, match: d.match, revision: window.revision };
@@ -198,5 +207,22 @@ async function check(engine) {
   // The tapped point lies a quarter into the chart.
   assert.equal(sent[4].type, "washrdata/split_cycle");
   assert.ok(Math.abs(sent[4].at_s - merged.duration_s / 4) < 300, `tapped split at ${sent[4].at_s}`);
+  // A dropped connection shows a readable message and recovers by itself,
+  // on first load and when coming back to the app.
+  const q = await browser.newPage();
+  await q.goto(base + "?fail=1");
+  const pane = q.locator("washrdata-panel");
+  await pane.locator(".card.error").waitFor();
+  assert.match(await pane.locator(".content").innerText(), /Verbindung zu Home Assistant unterbrochen/);
+  assert.doesNotMatch(await pane.locator(".content").innerText(), /object Object/);
+  await pane.locator(".cycle").first().waitFor({ timeout: 8000 });
+  await q.evaluate(() => {
+    window.failNext = 1;
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
+  await pane.locator(".banner").waitFor();
+  assert.ok((await pane.locator(".cycle").count()) > 0, "data stays while reconnecting");
+  await pane.locator(".banner").waitFor({ state: "detached", timeout: 8000 });
+  await q.close();
   console.log(`${engine}: panel smoke test passed`);
 }

@@ -1,6 +1,6 @@
 # WashRData: Konzept
 
-Stand: Version 0.2.13 (Programme und Erkennung), Oktober 2026.
+Stand: Version 0.2.14 (Programme und Erkennung), Oktober 2026.
 
 ## Ziel
 
@@ -333,7 +333,7 @@ Genauigkeit, Auswertung, Schwellen und alle Zyklen mit Kurve (Mittelwert pro Min
 `rename_program`, `delete_program` und `set_thresholds` ändern. Ein Browser-Test
 (`tests/frontend/panel_smoke.mjs`) lädt das Panel in Chromium mit Daten, die ein Integrationstest aus
 einem echten Home Assistant schreibt, und prüft Anzeige und Bedienung, in Chromium und in WebKit
-(iPhone). Er lädt das Modul wie Home Assistant per Script-Tag und legt das Element erst beim
+(iPhone), auch eine unterbrochene Verbindung beim ersten Laden und beim Zurückkehren in die App. Er lädt das Modul wie Home Assistant per Script-Tag und legt das Element erst beim
 Load-Event an oder schon vorher (Upgrade mit bereits gesetztem `hass`). Deshalb kein top-level
 `await` im Panel-Modul: Das Load-Event kommt, bevor ein solches `await` fertig ist. Das Panel zeigt:
 den laufenden Zyklus mit Live-Sicherheit und Kurve über den Referenzen, die Trefferquote gesamt und
@@ -388,6 +388,7 @@ und `remaining_min`.
 | **0.2.11** | Sensoren nachträglich ändern: „Neu konfigurieren“ wählt Leistungssensor und optional den Energiezähler der Steckdose, Läufe und Programme bleiben. Mit Energiezähler kommen Energie und Kosten pro Lauf aus dem Zählerstand |
 | **0.2.12** | Phasen: `sensor.<name>_phase` zeigt Wasser einlassen, Heizen, Waschen, Spülen, Schleudern (Trockner: Trocknen, Kühlen); die App färbt die Kurven nach Phasen. Restzeit der Waschmaschine ab dem Heizende aus den Referenzen: an echten Läufen ~3 statt ~6 min daneben |
 | **0.2.13** | Standby zwischen Stopp- und Startleistung beendet den Lauf, wenn er die ganze Endverzögerung anhält: zwei Wäschen mit 22 Minuten bei genau 4 W dazwischen wurden zu einem Lauf. Teilen bietet auch solche Standby-Strecken als Trennstelle an. Getestet an der gemeldeten Kurve |
+| **0.2.14** | App: Nach der Rückkehr aus dem Hintergrund (iPhone) stand „[object Object]“, weil die Verbindung kurz weg war und die App nicht neu lud. Jetzt verständliche Meldung, die Daten bleiben sichtbar, und die App lädt von selbst neu (beim Zurückkehren, beim Wiederverbinden und mit wachsendem Abstand bis 30 s) |
 | **0.2.x** | Kalibrierung der Schwellen an echten Kurven aus Diagnose-Dateien (Testkorpus, Leave-one-out-Messung); bei Bedarf Import alter Zyklen aus dem Recorder |
 | **0.3 Zusatzsensoren und Benachrichtigungen** | Türkontakt (Ende bestätigen, Erinnerung „Wäsche noch drin“), Vibrationssensor (Pause oder Ende unterscheiden, Leistung allein reicht dafür nicht immer), Wasserzähler; Blueprints für Benachrichtigungen, Vorwarnung vor dem Ende |
 | **0.4 Kosten und Tarife** | Kosten pro Zyklus mit fester oder dynamischer Preis-Entität (Tibber, Nordpool, EPEX); Empfehlung für die günstigste Startzeit: Programmprofil mal Preiskurve; Startzeit nach PV-Prognose (Forecast.Solar, Solcast) |

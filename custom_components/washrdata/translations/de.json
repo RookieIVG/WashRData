@@ -228,7 +228,10 @@
         "phase_rinsing": "Spülen",
         "phase_spinning": "Schleudern",
         "phase_drying": "Trocknen",
-        "phase_cooling": "Kühlen"
+        "phase_cooling": "Kühlen",
+        "connection_lost": "Verbindung zu Home Assistant unterbrochen.",
+        "load_failed": "Die Daten ließen sich nicht laden.",
+        "retrying": "Neuer Versuch läuft …"
       }
     }
   },

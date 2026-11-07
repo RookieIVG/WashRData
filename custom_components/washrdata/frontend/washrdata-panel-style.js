@@ -90,6 +90,7 @@ export const STYLE = `
   .text { background: none; border: none; color: var(--primary-color); cursor: pointer; padding: 4px 8px; }
   .text.danger { color: var(--error-color, #c62828); }
   .empty { color: var(--secondary-text-color); padding: 8px 0; }
+  .banner { background: var(--warning-color, #ffa600); color: var(--text-primary-color, #fff); border-radius: 8px; padding: 6px 12px; margin-bottom: 12px; font-size: 14px; }
   .error { color: var(--error-color, #c62828); }
   @media (max-width: 600px) {
     .content { padding: 8px; }
