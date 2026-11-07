@@ -6,7 +6,8 @@ on:
 
 jobs:
   tests:
-    runs-on: ubuntu-latest
+    # Pinned: Playwright 1.56 cannot install its browsers on newer Ubuntu images.
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
