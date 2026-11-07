@@ -56,6 +56,7 @@ class CycleDetector:
         self._power: float | None = None
         self._last_ts: float | None = None
         self._low_since: float | None = None
+        self._below_start_since: float | None = None
         self._unknown_since: float | None = None
         self._finished_ts: float | None = None
         self._last_burst_ts: float | None = None
@@ -127,6 +128,22 @@ class CycleDetector:
             self._active = False
         if was_active and not self._active:
             self._low_since = ts
+        # Power held in the hysteresis band (between stop and start power) for
+        # the whole end delay is standby, not activity: a real washing machine
+        # sat at exactly its stop power for 22 minutes between two washes and
+        # the cycle never ended (tests/fixtures/washer_standby_band.json).
+        if power < self.config.start_power_w:
+            if self._below_start_since is None:
+                self._below_start_since = ts
+        else:
+            self._below_start_since = None
+        if (
+            self._active
+            and self._below_start_since is not None
+            and ts - self._below_start_since >= self.end_delay
+        ):
+            self._active = False
+            self._low_since = self._below_start_since
 
     def _record_trace(self, ts: float, power: float | None) -> None:
         target = self.cycle or self._candidate
@@ -351,6 +368,7 @@ class CycleDetector:
             "power": self._power,
             "last_ts": self._last_ts,
             "low_since": self._low_since,
+            "below_start_since": self._below_start_since,
             "unknown_since": self._unknown_since,
             "finished_ts": self._finished_ts,
             "last_burst_ts": self._last_burst_ts,
@@ -378,6 +396,7 @@ class CycleDetector:
         det._power = data.get("power")
         det._last_ts = data.get("last_ts")
         det._low_since = data.get("low_since")
+        det._below_start_since = data.get("below_start_since")
         det._unknown_since = data.get("unknown_since")
         det._finished_ts = data.get("finished_ts")
         det._last_burst_ts = data.get("last_burst_ts")

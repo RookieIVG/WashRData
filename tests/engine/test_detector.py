@@ -88,10 +88,20 @@ def test_standby_between_thresholds_does_not_start() -> None:
 
 def test_hysteresis_keeps_running_between_thresholds() -> None:
     det = washer()
-    run = play(det, [(10 * MIN, 400.0), (20 * MIN, 6.0), (10 * MIN, 400.0), (20 * MIN, 1.0)])
+    run = play(det, [(10 * MIN, 400.0), (4 * MIN, 6.0), (10 * MIN, 400.0), (20 * MIN, 1.0)])
     assert run.kinds() == [EventKind.STARTED, EventKind.FINISHED]
     assert run.events[0].cycle is not None
     assert run.events[0].cycle.pauses == []
+
+
+def test_standby_in_the_band_for_the_end_delay_ends_the_cycle() -> None:
+    """Held between stop and start power for the whole end delay is standby:
+    the cycle ends where the power fell below the start power."""
+    det = washer()
+    run = play(det, [(10 * MIN, 400.0), (20 * MIN, 6.0), (10 * MIN, 400.0), (20 * MIN, 1.0)])
+    assert run.kinds() == [EventKind.STARTED, EventKind.FINISHED, EventKind.STARTED, EventKind.FINISHED]
+    first = run.of(EventKind.FINISHED)[0].cycle
+    assert first is not None and first.duration() == pytest.approx(10 * MIN, abs=MIN)
 
 
 def test_soak_shorter_than_end_delay_keeps_cycle() -> None:
@@ -184,7 +194,9 @@ def test_weak_load_after_end_does_not_block_idle() -> None:
     the start energy; the finished state must still time out."""
     det = dryer()
     run = play(det, [(60 * MIN, 2000.0), (5 * MIN, 0.5), (MIN, 21.0), (3 * HOUR, 10.0)])
-    assert run.kinds() == [EventKind.STARTED, EventKind.FINISHED]
+    # The short activity counts as an anti-crease turn once the band reads as standby.
+    assert run.kinds().count(EventKind.STARTED) == 1
+    assert run.kinds().count(EventKind.FINISHED) == 1
     assert det.state == State.IDLE
 
 

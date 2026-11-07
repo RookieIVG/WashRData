@@ -1,6 +1,6 @@
 # WashRData: Konzept
 
-Stand: Version 0.2.12 (Programme und Erkennung), Oktober 2026.
+Stand: Version 0.2.13 (Programme und Erkennung), Oktober 2026.
 
 ## Ziel
 
@@ -74,7 +74,10 @@ Code aus ha_washdata wird nicht übernommen (AGPL). WashRData ist eine Neuentwic
 
 **Hysterese.** Ab der Startleistung gilt das Gerät als aktiv, unter der Stoppleistung als ruhig.
 Dazwischen bleibt der vorige Zustand. Ein Display-Standby zwischen den Schwellen startet so nichts, und
-eine kurze Schwankung im Lauf beendet nichts.
+eine kurze Schwankung im Lauf beendet nichts. Bleibt die Leistung aber die ganze Endverzögerung lang unter
+der Startleistung, gilt sie als ruhig, ab dem Moment, an dem sie darunter fiel (an einer echten Kurve gefunden,
+0.2.13: eine Waschmaschine stand zwischen zwei Wäschen 22 Minuten bei genau der Stoppleistung von 4 W, und der
+erste Lauf endete nie; `tests/fixtures/washer_standby_band.json`).
 
 **Start über Energie.** Ein Zyklus beginnt erst, wenn die Aktivität genug Energie verbraucht hat
 (Waschmaschine 2 Wh, Trockner 5 Wh). Kurze Spitzen fallen so heraus. Als Startzeit gilt der Beginn der
@@ -99,7 +102,7 @@ gelernte Endverzögerung hoch, was das nächste Zusammenlegen wahrscheinlicher m
 kürzer als die Zeit zum Umladen stellen (z. B. 5 bis 10 min) und den Lauf teilen.
 
 **Teilen.** `engine/split.py` teilt einen gespeicherten Lauf. Liegt die Trennstelle in einer Ruhephase
-(nach der Hysterese des Detectors), endet der erste Teil an ihrem Beginn und der zweite beginnt an
+(unter der Startleistung, damit auch Standby zwischen den Schwellen zählt), endet der erste Teil an ihrem Beginn und der zweite beginnt an
 ihrem Ende; die Lücke gehört zu keinem. Energie und Kosten werden nach dem Anteil an der Kurve
 aufgeteilt, Pausen und Spitzenleistung je Teil aus der Kurve neu bestimmt. Beide Teile verlieren
 Programm und Erkennung und werden neu benannt. Der Eintrag des Laufs in der gelernten Endverzögerung
@@ -384,6 +387,7 @@ und `remaining_min`.
 | **0.2.10** | Energie als zweites Merkmal der Erkennung: Programme, die sich nur in der Heizdauer unterscheiden, werden sicherer erkannt (an echten Läufen: 5 statt 1 sicher richtig benannt). Trockner: Restzeit erst ab der Kühlphase, vorher „trocknet“; ab Kühlphase im Schnitt ~6 statt 26 Minuten daneben. Programme zusammenführen: Umbenennen auf einen vorhandenen Namen |
 | **0.2.11** | Sensoren nachträglich ändern: „Neu konfigurieren“ wählt Leistungssensor und optional den Energiezähler der Steckdose, Läufe und Programme bleiben. Mit Energiezähler kommen Energie und Kosten pro Lauf aus dem Zählerstand |
 | **0.2.12** | Phasen: `sensor.<name>_phase` zeigt Wasser einlassen, Heizen, Waschen, Spülen, Schleudern (Trockner: Trocknen, Kühlen); die App färbt die Kurven nach Phasen. Restzeit der Waschmaschine ab dem Heizende aus den Referenzen: an echten Läufen ~3 statt ~6 min daneben |
+| **0.2.13** | Standby zwischen Stopp- und Startleistung beendet den Lauf, wenn er die ganze Endverzögerung anhält: zwei Wäschen mit 22 Minuten bei genau 4 W dazwischen wurden zu einem Lauf. Teilen bietet auch solche Standby-Strecken als Trennstelle an. Getestet an der gemeldeten Kurve |
 | **0.2.x** | Kalibrierung der Schwellen an echten Kurven aus Diagnose-Dateien (Testkorpus, Leave-one-out-Messung); bei Bedarf Import alter Zyklen aus dem Recorder |
 | **0.3 Zusatzsensoren und Benachrichtigungen** | Türkontakt (Ende bestätigen, Erinnerung „Wäsche noch drin“), Vibrationssensor (Pause oder Ende unterscheiden, Leistung allein reicht dafür nicht immer), Wasserzähler; Blueprints für Benachrichtigungen, Vorwarnung vor dem Ende |
 | **0.4 Kosten und Tarife** | Kosten pro Zyklus mit fester oder dynamischer Preis-Entität (Tibber, Nordpool, EPEX); Empfehlung für die günstigste Startzeit: Programmprofil mal Preiskurve; Startzeit nach PV-Prognose (Forecast.Solar, Solcast) |

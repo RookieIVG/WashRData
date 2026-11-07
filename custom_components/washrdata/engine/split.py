@@ -43,9 +43,26 @@ def _activity(cycle: CycleRecord, config: DetectorConfig) -> list[tuple[float, f
     return out
 
 
+def _low(cycle: CycleRecord, config: DetectorConfig) -> list[tuple[float, float, bool]]:
+    """(start, end, active) where active means at or above the start power.
+
+    For splitting, standby inside the hysteresis band counts as quiet: a
+    machine that idles at exactly its stop power between two washes must
+    still offer that gap.
+    """
+    out: list[tuple[float, float, bool]] = []
+    for a, b, w in _segments(cycle):
+        active = w >= config.start_power_w
+        if out and out[-1][2] == active:
+            out[-1] = (out[-1][0], b, active)
+        else:
+            out.append((a, b, active))
+    return out
+
+
 def quiet_stretches(cycle: CycleRecord, config: DetectorConfig) -> list[tuple[float, float]]:
-    """Quiet stretches between activity, longest first: the candidate split points."""
-    runs = _activity(cycle, config)
+    """Stretches below the start power between activity, longest first: the candidate split points."""
+    runs = _low(cycle, config)
     quiet = [(a, b) for i, (a, b, active) in enumerate(runs) if not active and 0 < i < len(runs) - 1]
     return sorted((q for q in quiet if q[1] - q[0] >= MIN_QUIET_S), key=lambda q: q[0] - q[1])
 
@@ -72,8 +89,8 @@ def split_cycle(cycle: CycleRecord, at_s: float, config: DetectorConfig) -> tupl
     if not MIN_PART_S <= at_s <= duration - MIN_PART_S:
         raise ValueError("split point outside the cycle")
     first_end, second_start = at_s, at_s
-    for a, b, active in _activity(cycle, config):
-        if not active and a <= at_s <= b and a > 0 and b < duration:
+    for a, b, active in _low(cycle, config):
+        if not active and b - a >= MIN_QUIET_S and a <= at_s <= b and a > 0 and b < duration:
             first_end, second_start = a, b
     if first_end < MIN_PART_S or duration - second_start < MIN_PART_S:
         raise ValueError("a part would be empty")
