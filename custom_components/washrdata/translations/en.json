@@ -231,7 +231,9 @@
         "phase_cooling": "Cooling",
         "connection_lost": "Connection to Home Assistant lost.",
         "load_failed": "Could not load the data.",
-        "retrying": "Trying again …"
+        "retrying": "Trying again …",
+        "suspect": "Does not fit the other runs of {program} (energy or heating time). Labelled correctly?",
+        "suspect_better": "Does not fit the other runs of {program} (energy or heating time); fits {better} better. Labelled correctly?"
       }
     }
   },

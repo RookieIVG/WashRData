@@ -23,6 +23,8 @@ const page = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewp
 <script>customElements.define("ha-menu-button", class extends HTMLElement {});</script>
 <script type="module">
   const overview = await (await fetch("/overview.json")).json();
+  // A wash that does not fit its program (the engine side is tested in test_plausibility.py).
+  overview.devices[0].cycles.at(-1).suspect = { program: "Eco 40", better: "Kurz 30" };
   const de = await (await fetch("/de.json")).json();
   const resources = Object.fromEntries(Object.entries(de.selector.panel.options)
     .map(([k, v]) => ["component.washrdata.selector.panel.options." + k, v]));
@@ -139,6 +141,8 @@ async function check(engine) {
     assert.ok((await panel.locator("path.main.phase-heating").count()) >= 1, "heating drawn");
     assert.match(text, /Phase\s*(Heizen|Waschen|Spülen|Schleudern|Wasser einlassen)/);
     assert.match(text, /nachträglich/);
+    assert.match(text, /⚠ Passt nicht zu den anderen Läufen von Eco 40 \(Energie oder Heizdauer\), eher zu Kurz 30/);
+    assert.ok(device.cycles.every((c) => "suspect" in c), "suspect sent for every cycle");
     assert.match(text, /Kosten bisher/);
     assert.match(text, /€/);
     assert.ok(!/\b[a-z]+_[a-z_]+\b/.test(text.replace(/sensor\.\S+/g, "")), `${name}: untranslated key in panel`);

@@ -20,6 +20,7 @@ from .engine import CycleRecord, MatchResult
 from .engine.evaluation import CycleEvaluation, Evaluation
 from .engine.matching import resample
 from .engine.phases import cycle_segments
+from .engine.plausibility import suspicious
 from .engine.split import quiet_stretches
 
 # Quiet stretches offered as split points per cycle.
@@ -146,6 +147,8 @@ def device_json(device: WashRDataDevice) -> dict[str, Any]:
     refs = {c.id for cycles in tracker.references().values() for c in cycles}
     accuracy = tracker.accuracy()
     evaluated = {e.cycle_id: e for e in device.evaluation.cycles} if device.evaluation else {}
+    # Washes that do not fit their program; dryers vary too much by load.
+    suspects = {} if config.sensor_drying else suspicious(tracker.history)
     return {
         **live_json(device),
         "title": device.entry.title,
@@ -171,7 +174,10 @@ def device_json(device: WashRDataDevice) -> dict[str, Any]:
                 evaluation=_cycle_evaluation(evaluated.get(c.id), config.show_confidence),
                 sensor_drying=config.sensor_drying,
             )
-            | {"split_points": [[round(a), round(b)] for a, b in quiet_stretches(c, config)[:SPLIT_POINTS]]}
+            | {
+                "split_points": [[round(a), round(b)] for a, b in quiet_stretches(c, config)[:SPLIT_POINTS]],
+                "suspect": vars(suspects[c.id]) if c.id in suspects else None,
+            }
             for c in reversed(tracker.history)
         ],
     }

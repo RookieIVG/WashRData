@@ -231,7 +231,9 @@
         "phase_cooling": "Kühlen",
         "connection_lost": "Verbindung zu Home Assistant unterbrochen.",
         "load_failed": "Die Daten ließen sich nicht laden.",
-        "retrying": "Neuer Versuch läuft …"
+        "retrying": "Neuer Versuch läuft …",
+        "suspect": "Passt nicht zu den anderen Läufen von {program} (Energie oder Heizdauer). Richtig benannt?",
+        "suspect_better": "Passt nicht zu den anderen Läufen von {program} (Energie oder Heizdauer), eher zu {better}. Richtig benannt?"
       }
     }
   },

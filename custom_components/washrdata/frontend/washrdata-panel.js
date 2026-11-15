@@ -379,6 +379,16 @@ class WashRDataPanel extends HTMLElement {
     return `${mark}<span class="${sure ? "" : "muted"}">${said}</span>${note}${retro}`;
   }
 
+  // A wash that does not fit the other runs of its program: probably labelled wrongly.
+  _suspect(c) {
+    const s = c.suspect;
+    if (!s) return "";
+    const text = s.better
+      ? this.t("suspect_better", { program: s.program, better: s.better })
+      : this.t("suspect", { program: s.program });
+    return `<div class="suspect">⚠ ${esc(text)}</div>`;
+  }
+
   _select(device, c) {
     const options = [
       `<option value=""${c.program ? "" : " selected"}>${esc(this.t("none"))}</option>`,
@@ -404,6 +414,7 @@ class WashRDataPanel extends HTMLElement {
             <label>${esc(this.t("program"))} ${source}${this._select(device, c)}</label>
             <div class="verdict"><span class="muted small">${esc(this.t("recognition"))}</span> ${this._verdict(device, c)}</div>
           </div>
+          ${this._suspect(c)}
           ${open ? this._detail(device, c) : ""}
         </div>`;
       })

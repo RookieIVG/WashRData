@@ -146,7 +146,7 @@ def test_long_soak_resumes_and_is_learned() -> None:
 def test_learned_end_delay_is_capped() -> None:
     det = washer()
     play(det, [(20 * MIN, 300.0), (14 * MIN, 1.0), (20 * MIN, 300.0), (3 * HOUR, 1.0)])
-    det.learned.longest_pauses.append(10 * HOUR)
+    det.learned.longest_pauses.extend([10 * HOUR, 10 * HOUR])
     assert det.end_delay == WASHER.max_end_delay_s
 
 

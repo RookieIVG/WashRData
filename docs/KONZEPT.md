@@ -1,6 +1,6 @@
 # WashRData: Konzept
 
-Stand: Version 0.2.14 (Programme und Erkennung), Oktober 2026.
+Stand: Version 0.2.15 (Programme und Erkennung), November 2026.
 
 ## Ziel
 
@@ -85,10 +85,13 @@ Aktivität, nicht der Moment der Bestätigung.
 
 **Ende mit lernender Verzögerung.** Ein Zyklus endet, wenn das Gerät eine bestimmte Zeit ruhig ist.
 Als Endzeit zählt der Beginn der Ruhe, nicht ihr Ablauf. Die Verzögerung ist ein Mindestwert
-(Waschmaschine 5 min, Trockner 3 min). WashRData merkt sich die längste Pause der letzten 20 Zyklen und
-setzt die Verzögerung auf das 1,25-Fache plus 1 min, höchstens bis zu einer Obergrenze (Waschmaschine
+(Waschmaschine 5 min, Trockner 3 min). WashRData merkt sich die längste Pause jedes der letzten 20 Zyklen und
+setzt die Verzögerung auf das 1,25-Fache plus 1 min der **zweitlängsten** davon, höchstens bis zu einer Obergrenze (Waschmaschine
 60 min, Trockner 20 min, in den Optionen einstellbar). Ein Programm mit 12 Minuten Einweichen bringt dem Gerät also bei, nicht nach
-5 Minuten Ruhe das Ende auszurufen.
+5 Minuten Ruhe das Ende auszurufen. Eine Pause muss dafür zweimal vorkommen: Eine einmalige (Tür
+während des Trocknens zehn Minuten offen) hob die Verzögerung sonst bis zu 13 Minuten an, und jeder
+folgende Lauf meldete so spät „fertig“. Ein Lauf, der schon einmal fortgesetzt werden musste, zählt
+sofort doppelt, weil die Verzögerung dort nachweislich zu kurz war.
 
 **Fortsetzen statt Teilen.** Kommt innerhalb des Fortsetzungsfensters (Waschmaschine 15 min, Trockner
 10 min) nach einem Ende wieder anhaltend Leistung, wird der Zyklus wieder geöffnet (Event
@@ -149,6 +152,14 @@ Leistung, auf die Spitze skaliert, mit Wurzelskala, damit der Motor neben der He
 Wer ein Programm dort setzt oder ein erkanntes bestätigt, benennt den Zyklus von Hand. Ein neuer Name
 legt das Programm an. Die **Referenzen** eines Programms sind seine letzten fünf benannten, nicht
 unterbrochenen Zyklen. Von Hand benannte gehen vor.
+
+**Plausibilität (Waschmaschine).** Läufe eines Programms brauchen etwa gleich viel Energie und heizen
+etwa gleich lang; die Zulauftemperatur verschiebt beides um höchstens ein Viertel. Weicht ein benannter
+Lauf bei Energie oder Heizdauer um mehr als das 1,6-Fache vom Median der übrigen Läufe ab (mindestens
+drei), zeigt die App bei ihm einen Hinweis „Passt nicht zu den anderen Läufen von …“ und nennt das
+Programm, zu dem er besser passt (mindestens zwei Läufe). Ein falsch benannter Lauf verdirbt Referenzen
+und Restzeit. Trockner sind ausgenommen, weil Feuchtesensoren Energie und Dauer von der Beladung
+abhängig machen.
 
 **Kurven vergleichen.** Jede Kurve wird auf einen Mittelwert pro Minute gebracht und mit
 `log1p(W / 20)` gestaucht. Ein Heizstab mit 2000 W und eine Trommel mit 250 W unterscheiden sich so
@@ -389,6 +400,7 @@ und `remaining_min`.
 | **0.2.12** | Phasen: `sensor.<name>_phase` zeigt Wasser einlassen, Heizen, Waschen, Spülen, Schleudern (Trockner: Trocknen, Kühlen); die App färbt die Kurven nach Phasen. Restzeit der Waschmaschine ab dem Heizende aus den Referenzen: an echten Läufen ~3 statt ~6 min daneben |
 | **0.2.13** | Standby zwischen Stopp- und Startleistung beendet den Lauf, wenn er die ganze Endverzögerung anhält: zwei Wäschen mit 22 Minuten bei genau 4 W dazwischen wurden zu einem Lauf. Teilen bietet auch solche Standby-Strecken als Trennstelle an. Getestet an der gemeldeten Kurve |
 | **0.2.14** | App: Nach der Rückkehr aus dem Hintergrund (iPhone) stand „[object Object]“, weil die Verbindung kurz weg war und die App nicht neu lud. Jetzt verständliche Meldung, die Daten bleiben sichtbar, und die App lädt von selbst neu (beim Zurückkehren, beim Wiederverbinden und mit wachsendem Abstand bis 30 s) |
+| **0.2.15** | Trockner meldet „fertig“ wieder pünktlich: Die Endverzögerung lernt aus der zweitlängsten Pause, eine einmalige lange Pause (Tür offen) zählt nicht mehr; fortgesetzte Läufe zählen sofort. App: Hinweis bei Waschläufen, die nach Energie und Heizdauer nicht zu ihrem Programm passen, mit Vorschlag des passenderen Programms. Getestet an echten Kurven |
 | **0.2.x** | Kalibrierung der Schwellen an echten Kurven aus Diagnose-Dateien (Testkorpus, Leave-one-out-Messung); bei Bedarf Import alter Zyklen aus dem Recorder |
 | **0.3 Zusatzsensoren und Benachrichtigungen** | Türkontakt (Ende bestätigen, Erinnerung „Wäsche noch drin“), Vibrationssensor (Pause oder Ende unterscheiden, Leistung allein reicht dafür nicht immer), Wasserzähler; Blueprints für Benachrichtigungen, Vorwarnung vor dem Ende |
 | **0.4 Kosten und Tarife** | Kosten pro Zyklus mit fester oder dynamischer Preis-Entität (Tibber, Nordpool, EPEX); Empfehlung für die günstigste Startzeit: Programmprofil mal Preiskurve; Startzeit nach PV-Prognose (Forecast.Solar, Solcast) |

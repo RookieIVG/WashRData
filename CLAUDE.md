@@ -47,6 +47,7 @@ custom_components/washrdata/
     bursts.py        Knitterschutz-Drehungen am Zyklusende erkennen und abschneiden (Trockner)
     drying.py        Trockner: Kühlphase erkennen, Restzeit erst ab dort
     phases.py        Phasen (Heizen, Waschen, Spülen, Schleudern; Trocknen, Kühlen), Restzeit ab Heizende
+    plausibility.py  Benannte Waschläufe, die nach Energie und Heizdauer nicht zu ihrem Programm passen
   device.py          Adapter: Sensor-Events und Ticks -> Tracker, Events, Speicher
   meter.py           Energiezähler der Steckdose: Energie eines beendeten Zyklus aus dem Zählerstand
   services.py        Dienste (label_cycle, create/rename/delete_program)
